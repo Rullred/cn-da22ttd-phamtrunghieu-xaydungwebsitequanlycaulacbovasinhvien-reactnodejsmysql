@@ -45,7 +45,10 @@ export const authService = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getCurrentUser: () => api.get('/auth/me'),
-  logout: () => api.post('/auth/logout')
+  logout: () => api.post('/auth/logout'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, mat_khau_moi) => api.post('/auth/reset-password', { token, mat_khau_moi }),
+  resetPasswordDirect: (email, mat_khau_moi) => api.post('/auth/reset-password-direct', { email, mat_khau_moi })
 };
 
 // Admin services
@@ -60,7 +63,13 @@ export const adminService = {
   createClubAdmin: (data) => api.post('/admin/create-club-admin', data),
   getClubs: () => api.get('/admin/clubs'),
   deleteClub: (id) => api.delete(`/admin/club/${id}`),
-  getStatistics: () => api.get('/admin/statistics')
+  getStatistics: () => api.get('/admin/statistics'),
+  // Quản lý sinh viên
+  getStudents: (search) => api.get('/admin/students', { params: { search } }),
+  getStudent: (id) => api.get(`/admin/students/${id}`),
+  createStudent: (data) => api.post('/admin/students', data),
+  updateStudent: (id, data) => api.put(`/admin/students/${id}`, data),
+  deleteStudent: (id) => api.delete(`/admin/students/${id}`)
 };
 
 // Sinh viên services

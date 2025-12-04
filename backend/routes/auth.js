@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const passport = require('passport');
+const crypto = require('crypto');
 const db = require('../config/database');
 const upload = require('../middleware/upload');
 
@@ -255,6 +256,150 @@ router.post('/logout', (req, res) => {
     }
     res.json({ message: 'Đăng xuất thành công' });
   });
+});
+
+// Quên mật khẩu - Gửi link reset
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Vui lòng nhập email' });
+    }
+
+    // Kiểm tra email có tồn tại không
+    const [users] = await db.query(
+      'SELECT * FROM nguoi_dung WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Email không tồn tại trong hệ thống' });
+    }
+
+    const user = users[0];
+
+    // Tạo reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 giờ
+
+    // Lưu token vào database
+    await db.query(
+      'UPDATE nguoi_dung SET reset_token = ?, reset_token_expiry = ? WHERE id = ?',
+      [resetToken, resetTokenExpiry, user.id]
+    );
+
+    // URL reset password (frontend)
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+
+    // Log thông tin (trong production nên gửi email thật)
+    console.log('='.repeat(60));
+    console.log('RESET PASSWORD REQUEST');
+    console.log('Email:', email);
+    console.log('Reset URL:', resetUrl);
+    console.log('Token sẽ hết hạn sau 1 giờ');
+    console.log('='.repeat(60));
+
+    // TODO: Gửi email thật với nodemailer
+    // Tạm thời trả về thông báo thành công
+    res.json({ 
+      message: 'Đã gửi link đặt lại mật khẩu đến email của bạn',
+      // Chỉ để test - xóa dòng này khi production
+      resetUrl: process.env.NODE_ENV === 'development' ? resetUrl : undefined
+    });
+
+  } catch (error) {
+    console.error('Lỗi forgot password:', error);
+    res.status(500).json({ message: 'Lỗi xử lý yêu cầu', error: error.message });
+  }
+});
+
+// Reset mật khẩu
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, mat_khau_moi } = req.body;
+
+    if (!token || !mat_khau_moi) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    if (mat_khau_moi.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+    }
+
+    // Tìm user với token hợp lệ
+    const [users] = await db.query(
+      'SELECT * FROM nguoi_dung WHERE reset_token = ? AND reset_token_expiry > NOW()',
+      [token]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+    }
+
+    const user = users[0];
+
+    // Mã hóa mật khẩu mới
+    const hashedPassword = await bcrypt.hash(mat_khau_moi, 10);
+
+    // Cập nhật mật khẩu và xóa token
+    await db.query(
+      'UPDATE nguoi_dung SET mat_khau = ?, reset_token = NULL, reset_token_expiry = NULL WHERE id = ?',
+      [hashedPassword, user.id]
+    );
+
+    console.log('Đã reset mật khẩu cho user:', user.email);
+
+    res.json({ message: 'Đặt lại mật khẩu thành công' });
+
+  } catch (error) {
+    console.error('Lỗi reset password:', error);
+    res.status(500).json({ message: 'Lỗi xử lý yêu cầu', error: error.message });
+  }
+});
+
+// Reset mật khẩu trực tiếp (không cần token/email)
+router.post('/reset-password-direct', async (req, res) => {
+  try {
+    const { email, mat_khau_moi } = req.body;
+
+    if (!email || !mat_khau_moi) {
+      return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin' });
+    }
+
+    if (mat_khau_moi.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+    }
+
+    // Tìm user theo email
+    const [users] = await db.query(
+      'SELECT * FROM nguoi_dung WHERE email = ?',
+      [email]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'Email không tồn tại trong hệ thống' });
+    }
+
+    const user = users[0];
+
+    // Mã hóa mật khẩu mới
+    const hashedPassword = await bcrypt.hash(mat_khau_moi, 10);
+
+    // Cập nhật mật khẩu
+    await db.query(
+      'UPDATE nguoi_dung SET mat_khau = ? WHERE id = ?',
+      [hashedPassword, user.id]
+    );
+
+    console.log('Đã đổi mật khẩu cho user:', user.email);
+
+    res.json({ message: 'Đổi mật khẩu thành công' });
+
+  } catch (error) {
+    console.error('Lỗi đổi mật khẩu:', error);
+    res.status(500).json({ message: 'Lỗi xử lý yêu cầu', error: error.message });
+  }
 });
 
 module.exports = router;

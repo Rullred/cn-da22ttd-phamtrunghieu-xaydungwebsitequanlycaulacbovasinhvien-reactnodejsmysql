@@ -280,23 +280,23 @@ router.post('/approve-activity/:id', async (req, res) => {
     console.log('CLB:', clubs);
 
     if (clubs.length > 0) {
-      // Tạo thông báo cho Chủ nhiệm CLB
-      const messageToClub = `Hoạt động "${activity.ten_hoat_dong}" đã được Admin phê duyệt.`;
+      // Thông báo cho CHỦ NHIỆM CLB: Hoạt động đã được Admin phê duyệt
+      const messageToClub = `Hoạt động "${activity.ten_hoat_dong}" đã được Admin phê duyệt. Sinh viên đã có thể xem và đăng ký hoạt động này.`;
       await db.query(
         `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
-         VALUES (?, 'hoat_dong_duyet', 'Hoạt động đã được phê duyệt', ?, ?)`,
+         VALUES (?, 'duyet_hoat_dong', 'Hoạt động đã được phê duyệt', ?, ?)`,
         [clubs[0].chu_nhiem_id, messageToClub, `/caulacbo/hoat-dong/${id}`]
       );
       console.log('Đã tạo thông báo cho chủ nhiệm CLB');
 
-      // Gửi thông báo cho tất cả sinh viên về hoạt động mới
+      // Thông báo cho TẤT CẢ SINH VIÊN: Có hoạt động mới
       const [allStudents] = await db.query(
         `SELECT nguoi_dung_id FROM sinh_vien`
       );
       console.log('Số lượng sinh viên:', allStudents.length);
 
       const io = req.app.get('io');
-      const messageToStudents = `Hoạt động mới: ${activity.ten_hoat_dong} từ ${clubs[0].ten_clb}`;
+      const messageToStudents = `Hoạt động mới "${activity.ten_hoat_dong}" từ ${clubs[0].ten_clb}. Đăng ký ngay để tham gia!`;
       
       for (const student of allStudents) {
         try {
@@ -368,6 +368,239 @@ router.post('/reject-activity/:id', async (req, res) => {
     res.json({ message: 'Đã từ chối hoạt động' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi từ chối hoạt động', error: error.message });
+  }
+});
+
+// ==================== QUẢN LÝ SINH VIÊN ====================
+
+// Lấy danh sách sinh viên (có tìm kiếm)
+router.get('/students', async (req, res) => {
+  try {
+    const { search } = req.query;
+    
+    let query = `
+      SELECT sv.*, nd.email, nd.trang_thai, nd.created_at
+      FROM sinh_vien sv
+      JOIN nguoi_dung nd ON sv.nguoi_dung_id = nd.id
+    `;
+    
+    let params = [];
+    
+    if (search) {
+      query += ` WHERE sv.ma_sinh_vien LIKE ? OR sv.ho_ten LIKE ? OR sv.lop LIKE ?`;
+      const searchPattern = `%${search}%`;
+      params = [searchPattern, searchPattern, searchPattern];
+    }
+    
+    query += ` ORDER BY sv.created_at DESC`;
+    
+    const [students] = await db.query(query, params);
+    res.json(students);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy danh sách sinh viên', error: error.message });
+  }
+});
+
+// Lấy chi tiết sinh viên
+router.get('/students/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [students] = await db.query(
+      `SELECT sv.*, nd.email, nd.trang_thai, nd.created_at
+       FROM sinh_vien sv
+       JOIN nguoi_dung nd ON sv.nguoi_dung_id = nd.id
+       WHERE sv.id = ?`,
+      [id]
+    );
+    
+    if (students.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sinh viên' });
+    }
+    
+    res.json(students[0]);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy thông tin sinh viên', error: error.message });
+  }
+});
+
+// Tạo sinh viên mới
+router.post('/students', async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    const { email, mat_khau, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai } = req.body;
+    
+    console.log('Tạo sinh viên:', { email, ma_sinh_vien, ho_ten });
+    
+    // Validate dữ liệu bắt buộc
+    if (!email || !mat_khau || !ho_ten || !ma_sinh_vien) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+    
+    // Validate định dạng email
+    if (!email.includes('@')) {
+      return res.status(400).json({ message: 'Email không hợp lệ' });
+    }
+
+    // Bắt đầu transaction
+    await connection.beginTransaction();
+
+    try {
+      // Kiểm tra email đã tồn tại
+      const [existingUsers] = await connection.query(
+        'SELECT id FROM nguoi_dung WHERE email = ?',
+        [email]
+      );
+      
+      if (existingUsers.length > 0) {
+        console.log('Email đã tồn tại:', email);
+        await connection.rollback();
+        return res.status(400).json({ message: 'Email đã tồn tại' });
+      }
+      
+      // Kiểm tra MSSV đã tồn tại
+      const [existingStudents] = await connection.query(
+        'SELECT id FROM sinh_vien WHERE ma_sinh_vien = ?',
+        [ma_sinh_vien]
+      );
+      
+      if (existingStudents.length > 0) {
+        console.log('MSSV đã tồn tại:', ma_sinh_vien);
+        await connection.rollback();
+        return res.status(400).json({ message: 'Mã sinh viên đã tồn tại' });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(mat_khau, 10);
+      
+      // Tạo tài khoản người dùng
+      const [userResult] = await connection.query(
+        'INSERT INTO nguoi_dung (email, mat_khau, loai_nguoi_dung, trang_thai) VALUES (?, ?, "sinh_vien", "da_duyet")',
+        [email, hashedPassword]
+      );
+      
+      const nguoi_dung_id = userResult.insertId;
+      console.log('Đã tạo nguoi_dung:', nguoi_dung_id);
+      
+      // Tạo thông tin sinh viên
+      await connection.query(
+        `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [nguoi_dung_id, ho_ten, ma_sinh_vien, lop || null, khoa || null, nam_sinh || null, so_dien_thoai || null]
+      );
+      
+      // Commit transaction
+      await connection.commit();
+      console.log('Tạo sinh viên thành công:', ma_sinh_vien);
+      res.json({ message: 'Tạo sinh viên thành công' });
+      
+    } catch (error) {
+      // Rollback nếu có lỗi
+      await connection.rollback();
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Lỗi tạo sinh viên:', error);
+    res.status(500).json({ message: 'Lỗi tạo sinh viên', error: error.message });
+  } finally {
+    connection.release();
+  }
+});
+
+// Cập nhật sinh viên
+router.put('/students/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai, email } = req.body;
+    
+    // Lấy thông tin sinh viên hiện tại
+    const [currentStudent] = await db.query(
+      'SELECT nguoi_dung_id, ma_sinh_vien FROM sinh_vien WHERE id = ?',
+      [id]
+    );
+    
+    if (currentStudent.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sinh viên' });
+    }
+    
+    // Kiểm tra MSSV trùng (nếu thay đổi)
+    if (ma_sinh_vien !== currentStudent[0].ma_sinh_vien) {
+      const [existingStudents] = await db.query(
+        'SELECT id FROM sinh_vien WHERE ma_sinh_vien = ? AND id != ?',
+        [ma_sinh_vien, id]
+      );
+      
+      if (existingStudents.length > 0) {
+        return res.status(400).json({ message: 'Mã sinh viên đã tồn tại' });
+      }
+    }
+    
+    // Cập nhật thông tin sinh viên
+    await db.query(
+      `UPDATE sinh_vien 
+       SET ho_ten = ?, ma_sinh_vien = ?, lop = ?, khoa = ?, nam_sinh = ?, so_dien_thoai = ?
+       WHERE id = ?`,
+      [ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai, id]
+    );
+    
+    // Cập nhật email nếu có
+    if (email) {
+      // Validate định dạng email
+      if (!email.includes('@')) {
+        return res.status(400).json({ message: 'Email không hợp lệ' });
+      }
+      
+      // Kiểm tra email trùng
+      const [existingEmail] = await db.query(
+        'SELECT id FROM nguoi_dung WHERE email = ? AND id != ?',
+        [email, currentStudent[0].nguoi_dung_id]
+      );
+      
+      if (existingEmail.length > 0) {
+        return res.status(400).json({ message: 'Email đã tồn tại' });
+      }
+      
+      await db.query(
+        'UPDATE nguoi_dung SET email = ? WHERE id = ?',
+        [email, currentStudent[0].nguoi_dung_id]
+      );
+    }
+    
+    res.json({ message: 'Cập nhật sinh viên thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi cập nhật sinh viên', error: error.message });
+  }
+});
+
+// Xóa sinh viên
+router.delete('/students/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Lấy nguoi_dung_id
+    const [student] = await db.query(
+      'SELECT nguoi_dung_id FROM sinh_vien WHERE id = ?',
+      [id]
+    );
+    
+    if (student.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sinh viên' });
+    }
+    
+    const nguoi_dung_id = student[0].nguoi_dung_id;
+    
+    // Xóa sinh viên trước (CASCADE sẽ xóa dang_ky_hoat_dong, thanh_vien_clb)
+    await db.query('DELETE FROM sinh_vien WHERE id = ?', [id]);
+    
+    // Sau đó xóa tài khoản người dùng (CASCADE sẽ xóa thong_bao)
+    await db.query('DELETE FROM nguoi_dung WHERE id = ?', [nguoi_dung_id]);
+    
+    res.json({ message: 'Xóa sinh viên thành công' });
+  } catch (error) {
+    console.error('Lỗi xóa sinh viên:', error);
+    res.status(500).json({ message: 'Lỗi xóa sinh viên', error: error.message });
   }
 });
 

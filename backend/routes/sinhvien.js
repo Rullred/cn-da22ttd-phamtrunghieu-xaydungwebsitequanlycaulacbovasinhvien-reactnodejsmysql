@@ -112,12 +112,19 @@ router.post('/register-activity/:id', async (req, res) => {
     if (clbInfo.length > 0) {
       const { chu_nhiem_id, ho_ten, ten_hoat_dong } = clbInfo[0];
 
-      // Gửi thông báo cho Chủ nhiệm
+      // Thông báo cho SINH VIÊN: Đăng ký thành công
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
+         VALUES (?, 'dang_ky_thanh_cong', 'Đăng ký hoạt động thành công', ?, ?)`,
+        [req.user.id, `Bạn đã đăng ký tham gia hoạt động "${ten_hoat_dong}" thành công. Vui lòng chờ chủ nhiệm CLB phê duyệt.`, `/sinhvien/hoat-dong/${id}`]
+      );
+
+      // Thông báo cho CHỦ NHIỆM CLB: Có sinh viên đăng ký
       if (chu_nhiem_id) {
         await db.query(
           `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
-           VALUES (?, 'dang_ky_thanh_cong', 'Sinh viên đăng ký hoạt động', ?, ?)`,
-          [chu_nhiem_id, `${ho_ten} vừa đăng ký tham gia hoạt động "${ten_hoat_dong}"`, `/caulacbo/registrations/${id}`]
+           VALUES (?, 'dang_ky_thanh_cong', 'Có sinh viên đăng ký hoạt động', ?, ?)`,
+          [chu_nhiem_id, `${ho_ten} vừa đăng ký tham gia hoạt động "${ten_hoat_dong}". Vui lòng phê duyệt.`, `/caulacbo/hoat-dong`]
         );
       }
     }

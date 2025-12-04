@@ -27,8 +27,12 @@ router.get('/my-club', async (req, res) => {
 });
 
 // Tạo hoạt động mới
+// Tạo hoạt động mới
 router.post('/create-activity', async (req, res) => {
   try {
+    console.log('Tạo hoạt động - Request body:', req.body);
+    console.log('User ID:', req.user.id);
+    
     const { 
       ten_hoat_dong, 
       mo_ta, 
@@ -39,6 +43,20 @@ router.post('/create-activity', async (req, res) => {
       so_luong_toi_da 
     } = req.body;
 
+    // Validation
+    if (!ten_hoat_dong || !thoi_gian_bat_dau || !thoi_gian_ket_thuc || !dia_diem) {
+      return res.status(400).json({ message: 'Vui lòng điền đầy đủ thông tin bắt buộc' });
+    }
+
+    // Validate thời gian kết thúc phải sau thời gian bắt đầu
+    const startDate = new Date(thoi_gian_bat_dau);
+    const endDate = new Date(thoi_gian_ket_thuc);
+    
+    if (endDate <= startDate) {
+      console.error('Validation failed: End time must be after start time');
+      return res.status(400).json({ message: 'Thời gian kết thúc phải sau thời gian bắt đầu' });
+    }
+
     // Lấy CLB của Chủ nhiệm
     const [clubs] = await db.query(
       `SELECT id FROM cau_lac_bo 
@@ -46,8 +64,10 @@ router.post('/create-activity', async (req, res) => {
       [req.user.id]
     );
 
+    console.log('CLB tìm thấy:', clubs);
+
     if (clubs.length === 0) {
-      return res.status(404).json({ message: 'Không tìm thấy CLB' });
+      return res.status(404).json({ message: 'Không tìm thấy CLB của bạn' });
     }
 
     const cau_lac_bo_id = clubs[0].id;
@@ -62,7 +82,7 @@ router.post('/create-activity', async (req, res) => {
        dia_diem, quy_dinh_trang_phuc, so_luong_toi_da || 0]
     );
 
-    // Gửi thông báo cho admin để phê duyệt
+    // Thông báo cho ADMIN: Cần phê duyệt hoạt động mới
     const [admins] = await db.query(
       `SELECT id FROM nguoi_dung WHERE loai_nguoi_dung = 'admin'`
     );
@@ -71,16 +91,17 @@ router.post('/create-activity', async (req, res) => {
     for (const admin of admins) {
       await db.query(
         `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
-         VALUES (?, 'duyet_hoat_dong', 'Hoạt động mới cần duyệt', ?, ?)`,
-        [admin.id, `Hoạt động "${ten_hoat_dong}" đang chờ phê duyệt`, `/admin/pheduyet-hoatdong`]
+         VALUES (?, 'duyet_hoat_dong', 'Cần phê duyệt hoạt động mới', ?, ?)`,
+        [admin.id, `Hoạt động "${ten_hoat_dong}" đang chờ phê duyệt. Vui lòng kiểm tra và phê duyệt để sinh viên có thể đăng ký.`, `/admin/phe-duyet`]
       );
     }
 
     res.json({ 
-      message: 'Tạo hoạt động thành công',
+      message: 'Tạo hoạt động thành công! Vui lòng chờ Admin phê duyệt.',
       hoat_dong_id: result.insertId 
     });
   } catch (error) {
+    console.error('Lỗi tạo hoạt động:', error);
     res.status(500).json({ message: 'Lỗi tạo hoạt động', error: error.message });
   }
 });
@@ -136,11 +157,31 @@ router.post('/approve-registration/:id', async (req, res) => {
   try {
     const { id } = req.params; // DangKyHoatDong id
 
+    // Lấy thông tin đăng ký
+    const [regInfo] = await db.query(
+      'SELECT hoat_dong_id, trang_thai FROM dang_ky_hoat_dong WHERE id = ?',
+      [id]
+    );
+
+    if (regInfo.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy đăng ký' });
+    }
+
+    const { hoat_dong_id, trang_thai } = regInfo[0];
+
     // Cập nhật trạng thái
     await db.query(
       'UPDATE dang_ky_hoat_dong SET trang_thai = "da_duyet", ngay_duyet = NOW() WHERE id = ?',
       [id]
     );
+
+    // Nếu trạng thái cũ không phải "da_duyet", tăng số lượng
+    if (trang_thai !== 'da_duyet') {
+      await db.query(
+        'UPDATE hoat_dong SET so_luong_da_dang_ky = so_luong_da_dang_ky + 1 WHERE id = ?',
+        [hoat_dong_id]
+      );
+    }
 
     // Lấy thông tin để gửi thông báo
     const [info] = await db.query(
@@ -187,10 +228,30 @@ router.post('/reject-registration/:id', async (req, res) => {
     const { id } = req.params;
     const { ly_do } = req.body;
 
+    // Lấy thông tin đăng ký
+    const [regInfo] = await db.query(
+      'SELECT hoat_dong_id, trang_thai FROM dang_ky_hoat_dong WHERE id = ?',
+      [id]
+    );
+
+    if (regInfo.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy đăng ký' });
+    }
+
+    const { hoat_dong_id, trang_thai } = regInfo[0];
+
     await db.query(
       'UPDATE dang_ky_hoat_dong SET trang_thai = "tu_choi", ngay_duyet = NOW() WHERE id = ?',
       [id]
     );
+
+    // Nếu trạng thái cũ là "da_duyet", giảm số lượng
+    if (trang_thai === 'da_duyet') {
+      await db.query(
+        'UPDATE hoat_dong SET so_luong_da_dang_ky = GREATEST(so_luong_da_dang_ky - 1, 0) WHERE id = ?',
+        [hoat_dong_id]
+      );
+    }
 
     // Lấy thông tin để gửi thông báo
     const [info] = await db.query(
@@ -402,14 +463,34 @@ router.put('/activity/:id', async (req, res) => {
 });
 
 // Xóa hoạt động
+// Xóa hoạt động
 router.delete('/activity/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
 
+    // Kiểm tra quyền sở hữu
+    const [activities] = await db.query(
+      `SELECT hd.* FROM hoat_dong hd
+       JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
+       WHERE hd.id = ? AND clb.chu_nhiem_id = ?`,
+      [id, userId]
+    );
+
+    if (activities.length === 0) {
+      return res.status(403).json({ message: 'Bạn không có quyền xóa hoạt động này' });
+    }
+
+    // Xóa các bản ghi liên quan trước
+    await db.query('DELETE FROM dang_ky_hoat_dong WHERE hoat_dong_id = ?', [id]);
+    await db.query('DELETE FROM thong_bao WHERE lien_ket LIKE ?', [`%/hoat-dong/${id}%`]);
+    
+    // Xóa hoạt động
     await db.query('DELETE FROM hoat_dong WHERE id = ?', [id]);
 
     res.json({ message: 'Xóa hoạt động thành công' });
   } catch (error) {
+    console.error('Lỗi xóa hoạt động:', error);
     res.status(500).json({ message: 'Lỗi xóa hoạt động', error: error.message });
   }
 });

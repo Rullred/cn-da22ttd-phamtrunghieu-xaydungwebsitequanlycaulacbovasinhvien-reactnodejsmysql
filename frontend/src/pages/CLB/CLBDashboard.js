@@ -16,6 +16,7 @@ import {
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
 import QuanLyThanhVien from './QuanLyThanhVien';
+import DanhSachDangKy from './DanhSachDangKy';
 import './CLBDashboard.css';
 
 const CLBHome = () => {
@@ -279,6 +280,7 @@ const CLBDashboard = () => {
           <Route path="tao-hoat-dong" element={<TaoHoatDong />} />
           <Route path="hoat-dong" element={<QuanLyHoatDong />} />
           <Route path="thanh-vien" element={<QuanLyThanhVien />} />
+          <Route path="danh-sach-dang-ky/:hoatDongId" element={<DanhSachDangKy />} />
         </Routes>
       </div>
     </div>

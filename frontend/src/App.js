@@ -4,6 +4,8 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import CreateProfile from './pages/CreateProfile';
 import WaitingApproval from './pages/WaitingApproval';
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -95,6 +97,8 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/create-profile" element={<CreateProfile />} />
             <Route path="/waiting-approval" element={<WaitingApproval />} />
             

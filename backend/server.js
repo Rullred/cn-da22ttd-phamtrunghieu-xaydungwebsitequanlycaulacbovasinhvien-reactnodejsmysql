@@ -6,6 +6,9 @@ const http = require('http');
 const socketIo = require('socket.io');
 require('dotenv').config();
 
+// Set timezone to Vietnam
+process.env.TZ = 'Asia/Ho_Chi_Minh';
+
 const passport = require('./config/passport');
 const db = require('./config/database');
 

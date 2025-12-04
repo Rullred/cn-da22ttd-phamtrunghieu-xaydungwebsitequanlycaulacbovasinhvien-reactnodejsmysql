@@ -97,6 +97,25 @@
   margin-top: 10px;
 }
 
+.forgot-password {
+  text-align: right;
+  margin-bottom: 15px;
+  margin-top: -5px;
+}
+
+.forgot-password a {
+  color: #2196F3;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.forgot-password a:hover {
+  color: #1976D2;
+  text-decoration: underline;
+}
+
 .alert {
   padding: 12px 15px;
   border-radius: 5px;
@@ -108,6 +127,12 @@
   background: #fee;
   color: #c33;
   border-left: 4px solid #c33;
+}
+
+.alert-success {
+  background: #efe;
+  color: #2a7;
+  border-left: 4px solid #2a7;
 }
 
 .login-footer {

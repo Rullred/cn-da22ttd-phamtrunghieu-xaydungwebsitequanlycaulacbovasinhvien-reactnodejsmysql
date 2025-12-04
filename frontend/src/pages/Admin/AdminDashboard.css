@@ -253,6 +253,7 @@
   position: relative;
   overflow: hidden;
   animation: fadeInUp 0.6s ease backwards;
+  cursor: pointer;
 }
 
 .stat-card::before {
@@ -266,9 +267,31 @@
   animation: shimmer 2s infinite;
 }
 
+.stat-card::after {
+  content: '→';
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 24px;
+  font-weight: bold;
+  opacity: 0;
+  transition: all 0.3s;
+  color: #667eea;
+}
+
 .stat-card:hover {
-  transform: translateY(-8px);
+  transform: translateY(-8px) scale(1.02);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card:hover::after {
+  opacity: 0.5;
+  right: 15px;
+}
+
+.stat-card:active {
+  transform: translateY(-4px) scale(1);
 }
 
 .stat-card:nth-child(1) { animation-delay: 0.1s; }
@@ -451,6 +474,15 @@
 
 .action-btn-success:hover {
   box-shadow: 0 8px 32px rgba(240, 147, 251, 0.4);
+}
+
+.action-btn-info {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 4px 20px rgba(79, 172, 254, 0.3);
+}
+
+.action-btn-info:hover {
+  box-shadow: 0 8px 32px rgba(79, 172, 254, 0.4);
 }
 
 .action-btn-icon {

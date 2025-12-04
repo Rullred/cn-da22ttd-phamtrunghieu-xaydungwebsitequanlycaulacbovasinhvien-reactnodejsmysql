@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS sinh_vien (
     lop VARCHAR(100),
     khoa VARCHAR(255),
     nam_sinh INT,
+    so_dien_thoai VARCHAR(20),
     anh_dai_dien VARCHAR(255) DEFAULT '/public/images/default-avatar.jpg',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (nguoi_dung_id) REFERENCES nguoi_dung(id) ON DELETE CASCADE,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/api';
 import { 
   FaUsers, 
@@ -10,13 +10,16 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaBell,
-  FaCalendarAlt
+  FaCalendarAlt,
+  FaUserGraduate
 } from 'react-icons/fa';
 import PheDuyetHoatDong from './PheDuyetHoatDong';
 import QuanLyCauLacBo from './QuanLyCauLacBo';
+import QuanLySinhVien from './QuanLySinhVien';
 import './AdminDashboard.css';
 
 const AdminHome = () => {
+  const navigate = useNavigate();
   const [statistics, setStatistics] = useState({
     tong_sinh_vien: 0,
     tong_clb: 0,
@@ -47,8 +50,7 @@ const AdminHome = () => {
       label: 'Sinh viên',
       color: 'primary',
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      change: '+12%',
-      isIncrease: true
+      link: '/admin/sinh-vien'
     },
     {
       icon: FaUniversity,
@@ -56,8 +58,7 @@ const AdminHome = () => {
       label: 'Câu lạc bộ',
       color: 'success',
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      change: '+5%',
-      isIncrease: true
+      link: '/admin/cau-lac-bo'
     },
     {
       icon: FaCalendarAlt,
@@ -65,8 +66,7 @@ const AdminHome = () => {
       label: 'Hoạt động sắp tới',
       color: 'info',
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      change: '+8%',
-      isIncrease: true
+      link: '/admin/phe-duyet'
     },
     {
       icon: FaClipboardCheck,
@@ -74,8 +74,7 @@ const AdminHome = () => {
       label: 'Hoạt động chờ duyệt',
       color: 'warning',
       gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      change: '-3%',
-      isIncrease: false
+      link: '/admin/phe-duyet'
     }
   ];
 
@@ -89,30 +88,18 @@ const AdminHome = () => {
 
   return (
     <div className="admin-home">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Bảng điều khiển</h1>
-          <p className="page-subtitle">Chào mừng trở lại! Đây là tổng quan hệ thống của bạn.</p>
-        </div>
-        <div className="header-actions">
-          <button className="notification-btn">
-            <FaBell />
-            <span className="badge">3</span>
-          </button>
-        </div>
-      </div>
-      
       <div className="stats-grid">
         {statsData.map((stat, index) => (
-          <div key={index} className={`stat-card stat-${stat.color}`}>
+          <div 
+            key={index} 
+            className={`stat-card stat-${stat.color}`}
+            onClick={() => navigate(stat.link)}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="stat-card-inner">
               <div className="stat-header">
                 <div className="stat-icon" style={{ background: stat.gradient }}>
-                  <stat.icon size={24} />
-                </div>
-                <div className={`stat-change ${stat.isIncrease ? 'positive' : 'negative'}`}>
-                  {stat.isIncrease ? <FaArrowUp /> : <FaArrowDown />}
-                  <span>{stat.change}</span>
+                  <stat.icon size={28} />
                 </div>
               </div>
               <div className="stat-content">
@@ -157,6 +144,15 @@ const AdminHome = () => {
               <div className="action-btn-content">
                 <h3>Quản lý CLB</h3>
                 <p>Giám sát các câu lạc bộ</p>
+              </div>
+            </Link>
+            <Link to="/admin/sinh-vien" className="action-btn action-btn-info">
+              <div className="action-btn-icon">
+                <FaUserGraduate size={24} />
+              </div>
+              <div className="action-btn-content">
+                <h3>Quản lý sinh viên</h3>
+                <p>Quản lý thông tin sinh viên</p>
               </div>
             </Link>
           </div>
@@ -240,6 +236,13 @@ const AdminDashboard = () => {
             <FaUniversity />
             <span>Quản lý CLB</span>
           </Link>
+          <Link 
+            to="/admin/sinh-vien" 
+            className={`nav-item ${location.pathname === '/admin/sinh-vien' ? 'active' : ''}`}
+          >
+            <FaUserGraduate />
+            <span>Quản lý sinh viên</span>
+          </Link>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -259,6 +262,7 @@ const AdminDashboard = () => {
           <Route index element={<AdminHome />} />
           <Route path="phe-duyet" element={<PheDuyetHoatDong />} />
           <Route path="cau-lac-bo" element={<QuanLyCauLacBo />} />
+          <Route path="sinh-vien" element={<QuanLySinhVien />} />
         </Routes>
       </div>
     </div>
