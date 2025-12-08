@@ -52,6 +52,43 @@
   border-radius: 8px;
 }
 
+.tab-navigation {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  background: white;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  color: #718096;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: #f7fafc;
+  color: #667eea;
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
 .period-btn {
   padding: 8px 16px;
   border: none;
@@ -264,5 +301,232 @@
 
   .chart-card.full-width {
     grid-column: 1;
+  }
+}
+
+/* Rating Styles */
+.ratings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rating-overview {
+  background: white;
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.rating-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.average-rating {
+  text-align: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f7fafc 0%, #e6f7ff 100%);
+  border-radius: 12px;
+  min-width: 200px;
+}
+
+.average-rating h2 {
+  margin: 0 0 8px 0;
+  font-size: 64px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.average-rating .stars {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.average-rating .stars svg {
+  font-size: 24px;
+  color: #e2e8f0;
+}
+
+.average-rating .stars svg.active {
+  color: #fbbf24;
+}
+
+.average-rating p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.rating-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.distribution-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.star-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 50px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.star-label svg {
+  color: #fbbf24;
+  font-size: 12px;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+}
+
+.distribution-row .count {
+  min-width: 40px;
+  text-align: right;
+  font-size: 14px;
+  color: #718096;
+}
+
+.ratings-list {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.ratings-list h3 {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2d3748;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rating-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rating-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.rating-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.1);
+}
+
+.rating-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+}
+
+.user-info h4 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.user-type {
+  font-size: 12px;
+  color: #718096;
+}
+
+.rating-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.rating-stars svg.active {
+  color: #fbbf24;
+}
+
+.rating-stars svg.inactive {
+  color: #e2e8f0;
+}
+
+.rating-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background: #e6f7ff;
+  color: #667eea;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.feedback-text {
+  margin: 0;
+  color: #4a5568;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.rating-date {
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+@media (max-width: 992px) {
+  .rating-summary {
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
 }

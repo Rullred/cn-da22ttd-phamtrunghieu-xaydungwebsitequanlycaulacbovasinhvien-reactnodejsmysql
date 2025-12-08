@@ -115,4 +115,11 @@ export const thongbaoService = {
   getUnreadCount: () => api.get('/thongbao/unread-count')
 };
 
+// Đánh giá services
+export const danhgiaService = {
+  createRating: (data) => api.post('/danhgia', data),
+  getAllRatings: () => api.get('/danhgia'),
+  getRatingStats: () => api.get('/danhgia/stats')
+};
+
 export default api;

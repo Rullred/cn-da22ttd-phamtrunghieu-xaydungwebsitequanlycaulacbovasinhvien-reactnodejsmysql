@@ -12,7 +12,8 @@ import {
   FaUserCheck,
   FaStar,
   FaTrophy,
-  FaChartLine
+  FaChartLine,
+  FaCommentDots
 } from 'react-icons/fa';
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
@@ -20,6 +21,7 @@ import QuanLyThanhVien from './QuanLyThanhVien';
 import DanhSachDangKy from './DanhSachDangKy';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
+import DanhGia from './DanhGia';
 import './CLBDashboard.css';
 
 const CLBHome = () => {
@@ -277,6 +279,13 @@ const CLBDashboard = () => {
             <FaChartLine />
             <span>Thống kê</span>
           </Link>
+          <Link 
+            to="/caulacbo/danh-gia" 
+            className={`nav-item ${location.pathname === '/caulacbo/danh-gia' ? 'active' : ''}`}
+          >
+            <FaCommentDots />
+            <span>Đánh giá</span>
+          </Link>
         </nav>
         <div className="sidebar-footer-clb">
           <div className="clb-stats-mini">
@@ -300,6 +309,7 @@ const CLBDashboard = () => {
           <Route path="danh-sach-dang-ky/:hoatDongId" element={<DanhSachDangKy />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
+          <Route path="danh-gia" element={<DanhGia />} />
         </Routes>
       </div>
     </div>

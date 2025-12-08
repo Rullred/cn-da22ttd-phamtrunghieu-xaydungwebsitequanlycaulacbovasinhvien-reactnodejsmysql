@@ -19,6 +19,7 @@ const sinhvienRoutes = require('./routes/sinhvien');
 const caulacboRoutes = require('./routes/caulacbo');
 const hoatdongRoutes = require('./routes/hoatdong');
 const thongbaoRoutes = require('./routes/thongbao');
+const danhgiaRoutes = require('./routes/danhgia');
 
 const app = express();
 const server = http.createServer(app);
@@ -95,6 +96,7 @@ app.use('/api/sinhvien', sinhvienRoutes);
 app.use('/api/caulacbo', caulacboRoutes);
 app.use('/api/hoatdong', hoatdongRoutes);
 app.use('/api/thongbao', thongbaoRoutes);
+app.use('/api/danhgia', danhgiaRoutes);
 
 // Route mặc định
 app.get('/', (req, res) => {

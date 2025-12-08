@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { sinhvienService } from '../../services/api';
-import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaChartLine } from 'react-icons/fa';
+import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaChartLine, FaCommentDots } from 'react-icons/fa';
 import DanhSachHoatDong from './DanhSachHoatDong';
 import HoatDongCuaToi from './HoatDongCuaToi';
 import Profile from './Profile';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
+import DanhGia from './DanhGia';
 import './SinhVienDashboard.css';
 
 const SinhVienHome = () => {
@@ -81,6 +82,9 @@ const SinhVienDashboard = () => {
           <Link to="/sinhvien/thong-ke" className="nav-item">
             <FaChartLine /> Thống kê
           </Link>
+          <Link to="/sinhvien/danh-gia" className="nav-item">
+            <FaCommentDots /> Đánh giá
+          </Link>
         </nav>
       </div>
 
@@ -92,6 +96,7 @@ const SinhVienDashboard = () => {
           <Route path="profile" element={<Profile />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
+          <Route path="danh-gia" element={<DanhGia />} />
         </Routes>
       </div>
     </div>
