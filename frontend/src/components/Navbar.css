@@ -33,7 +33,7 @@
 .navbar-logo-img {
   height: 56px;
   width: 56px;
-  border-radius: 14px;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
   padding: 8px;
   object-fit: contain;

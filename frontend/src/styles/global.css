@@ -130,6 +130,11 @@ textarea.form-control {
 .table {
   width: 100%;
   border-collapse: collapse;
+  background: var(--card-bg);
+/* Table styles */
+.table {
+  width: 100%;
+  border-collapse: collapse;
   background: white;
 }
 
@@ -148,12 +153,7 @@ textarea.form-control {
 
 .table tr:hover {
   background: #f9f9f9;
-}
-
-/* Badge styles */
-.badge {
-  display: inline-block;
-  padding: 4px 10px;
+} padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 500;
