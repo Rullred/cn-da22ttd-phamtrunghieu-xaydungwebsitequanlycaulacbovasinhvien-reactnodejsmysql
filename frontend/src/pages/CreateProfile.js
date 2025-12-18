@@ -15,10 +15,32 @@ const CreateProfile = () => {
     ma_sinh_vien: '',
     lop: '',
     khoa: '',
-    nam_sinh: ''
+    khoa_hoc: ''
   });
+  const [lopSuggestions, setLopSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [anhDaiDien, setAnhDaiDien] = useState(null);
   const [preview, setPreview] = useState(null);
+
+  // Danh sách lớp theo khóa
+  const danhSachLop = [
+    // Khóa 22
+    'DA22TTA', 'DA22TTB', 'DA22TTC', 'DA22TTD',
+    'DA22XDA', 'DA22XDB',
+    'DA22CNOTA', 'DA22CNOTB', 'DA22CNOTC',
+    // Khóa 23
+    'DA23TTA', 'DA23TTB', 'DA23TTC', 'DA23TTD',
+    'DA23XDA', 'DA23XDB',
+    'DA23CNOTA', 'DA23CNOTB', 'DA23CNOTC',
+    // Khóa 24
+    'DA24TTA', 'DA24TTB', 'DA24TTC', 'DA24TTD',
+    'DA24XDA', 'DA24XDB',
+    'DA24CNOTA', 'DA24CNOTB', 'DA24CNOTC',
+    // Khóa 25
+    'DA25TTA', 'DA25TTB', 'DA25TTC', 'DA25TTD',
+    'DA25XDA', 'DA25XDB',
+    'DA25CNOTA', 'DA25CNOTB', 'DA25CNOTC'
+  ];
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -52,10 +74,22 @@ const CreateProfile = () => {
   }, [searchParams, navigate]);
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+
+    // Tự động gợi ý lớp khi nhập
+    if (name === 'lop' && value.length > 0) {
+      const filtered = danhSachLop.filter(lop => 
+        lop.toLowerCase().includes(value.toLowerCase())
+      );
+      setLopSuggestions(filtered);
+      setShowSuggestions(true);
+    } else if (name === 'lop') {
+      setShowSuggestions(false);
+    }
   };
 
   const handleFileChange = (e) => {
@@ -78,7 +112,7 @@ const CreateProfile = () => {
       data.append('ma_sinh_vien', formData.ma_sinh_vien);
       data.append('lop', formData.lop);
       data.append('khoa', formData.khoa);
-      data.append('nam_sinh', formData.nam_sinh);
+      data.append('khoa_hoc', formData.khoa_hoc);
       
       if (anhDaiDien) {
         data.append('anh_dai_dien', anhDaiDien);
@@ -153,7 +187,7 @@ const CreateProfile = () => {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group" style={{ position: 'relative' }}>
             <label>Lớp *</label>
             <input
               type="text"
@@ -161,8 +195,46 @@ const CreateProfile = () => {
               className="form-control"
               value={formData.lop}
               onChange={handleChange}
+              onFocus={() => setShowSuggestions(formData.lop.length > 0)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              placeholder="VD: DA22TTA, DA23TTB..."
               required
             />
+            {showSuggestions && lopSuggestions.length > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                zIndex: 1000,
+                boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+              }}>
+                {lopSuggestions.map((lop, index) => (
+                  <div
+                    key={index}
+                    onClick={() => {
+                      setFormData({ ...formData, lop });
+                      setShowSuggestions(false);
+                    }}
+                    style={{
+                      padding: '10px 15px',
+                      cursor: 'pointer',
+                      borderBottom: '1px solid #f0f0f0',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
+                    onMouseLeave={(e) => e.target.style.background = 'white'}
+                  >
+                    {lop}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="form-group">
@@ -183,17 +255,20 @@ const CreateProfile = () => {
           </div>
 
           <div className="form-group">
-            <label>Năm sinh *</label>
-            <input
-              type="number"
-              name="nam_sinh"
+            <label>Khóa *</label>
+            <select
+              name="khoa_hoc"
               className="form-control"
-              value={formData.nam_sinh}
+              value={formData.khoa_hoc}
               onChange={handleChange}
-              min="1990"
-              max="2010"
               required
-            />
+            >
+              <option value="">-- Chọn khóa --</option>
+              <option value="22">Khóa 22</option>
+              <option value="23">Khóa 23</option>
+              <option value="24">Khóa 24</option>
+              <option value="25">Khóa 25</option>
+            </select>
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>

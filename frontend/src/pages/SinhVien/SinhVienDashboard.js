@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import { sinhvienService } from '../../services/api';
-import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaChartLine, FaCommentDots } from 'react-icons/fa';
+import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaChartLine, FaCommentDots, FaComments, FaClipboardCheck } from 'react-icons/fa';
 import DanhSachHoatDong from './DanhSachHoatDong';
 import HoatDongCuaToi from './HoatDongCuaToi';
+import TrangThaiDangKy from './TrangThaiDangKy';
 import Profile from './Profile';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
 import DanhGia from './DanhGia';
+import ChatList from '../Chat/ChatList';
+import ChatRoom from '../Chat/ChatRoom';
 import './SinhVienDashboard.css';
 
 const SinhVienHome = () => {
@@ -73,6 +76,12 @@ const SinhVienDashboard = () => {
           <Link to="/sinhvien/cua-toi" className="nav-item">
             <FaClipboardList /> Hoạt động của tôi
           </Link>
+          <Link to="/sinhvien/trang-thai-dang-ky" className="nav-item">
+            <FaClipboardCheck /> Trạng thái đăng ký
+          </Link>
+          <Link to="/sinhvien/chat" className="nav-item">
+            <FaComments /> Phòng chat
+          </Link>
           <Link to="/sinhvien/profile" className="nav-item">
             <FaUser /> Hồ sơ cá nhân
           </Link>
@@ -93,6 +102,9 @@ const SinhVienDashboard = () => {
           <Route index element={<SinhVienHome />} />
           <Route path="hoat-dong" element={<DanhSachHoatDong />} />
           <Route path="cua-toi" element={<HoatDongCuaToi />} />
+          <Route path="trang-thai-dang-ky" element={<TrangThaiDangKy />} />
+          <Route path="chat" element={<ChatList />} />
+          <Route path="chat/:roomId" element={<ChatRoom />} />
           <Route path="profile" element={<Profile />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />

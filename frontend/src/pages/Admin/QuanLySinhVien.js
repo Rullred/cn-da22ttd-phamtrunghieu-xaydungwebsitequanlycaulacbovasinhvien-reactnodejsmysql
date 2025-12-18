@@ -26,6 +26,8 @@ const QuanLySinhVien = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
+  const [lopSuggestions, setLopSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     mat_khau: '',
@@ -33,9 +35,24 @@ const QuanLySinhVien = () => {
     ma_sinh_vien: '',
     lop: '',
     khoa: '',
-    nam_sinh: '',
+    khoa_hoc: '',
     so_dien_thoai: ''
   });
+
+  const danhSachLop = [
+    'DA22TTA', 'DA22TTB', 'DA22TTC', 'DA22TTD',
+    'DA22XDA', 'DA22XDB', 'DA22XDC', 'DA22XDD',
+    'DA22CNOTA', 'DA22CNOTB', 'DA22CNOTC', 'DA22CNOTD',
+    'DA23TTA', 'DA23TTB', 'DA23TTC', 'DA23TTD',
+    'DA23XDA', 'DA23XDB', 'DA23XDC', 'DA23XDD',
+    'DA23CNOTA', 'DA23CNOTB', 'DA23CNOTC', 'DA23CNOTD',
+    'DA24TTA', 'DA24TTB', 'DA24TTC', 'DA24TTD',
+    'DA24XDA', 'DA24XDB', 'DA24XDC', 'DA24XDD',
+    'DA24CNOTA', 'DA24CNOTB', 'DA24CNOTC', 'DA24CNOTD',
+    'DA25TTA', 'DA25TTB', 'DA25TTC', 'DA25TTD',
+    'DA25XDA', 'DA25XDB', 'DA25XDC', 'DA25XDD',
+    'DA25CNOTA', 'DA25CNOTB', 'DA25CNOTC', 'DA25CNOTD'
+  ];
 
   useEffect(() => {
     fetchStudents();
@@ -68,7 +85,7 @@ const QuanLySinhVien = () => {
       ma_sinh_vien: '',
       lop: '',
       khoa: '',
-      nam_sinh: '',
+      khoa_hoc: '',
       so_dien_thoai: ''
     });
     setShowModal(true);
@@ -83,7 +100,7 @@ const QuanLySinhVien = () => {
       ma_sinh_vien: student.ma_sinh_vien,
       lop: student.lop,
       khoa: student.khoa,
-      nam_sinh: student.nam_sinh,
+      khoa_hoc: student.khoa_hoc,
       so_dien_thoai: student.so_dien_thoai || ''
     });
     setShowModal(true);
@@ -148,10 +165,31 @@ const QuanLySinhVien = () => {
   };
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: value
     });
+
+    if (name === 'lop') {
+      if (value) {
+        const filtered = danhSachLop.filter(lop => 
+          lop.toLowerCase().includes(value.toLowerCase())
+        );
+        setLopSuggestions(filtered);
+        setShowSuggestions(true);
+      } else {
+        setShowSuggestions(false);
+      }
+    }
+  };
+
+  const handleSelectLop = (lop) => {
+    setFormData({
+      ...formData,
+      lop: lop
+    });
+    setShowSuggestions(false);
   };
 
   const formatDate = (dateString) => {
@@ -209,7 +247,7 @@ const QuanLySinhVien = () => {
                 <th>Email</th>
                 <th>Lớp</th>
                 <th>Khoa</th>
-                <th>Năm sinh</th>
+                <th>Khóa</th>
                 <th>SĐT</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
@@ -241,7 +279,7 @@ const QuanLySinhVien = () => {
                   </td>
                   <td>{student.lop}</td>
                   <td>{student.khoa}</td>
-                  <td>{student.nam_sinh}</td>
+                  <td>{student.khoa_hoc ? `Khóa ${student.khoa_hoc}` : '-'}</td>
                   <td>
                     {student.so_dien_thoai && (
                       <>
@@ -375,7 +413,7 @@ const QuanLySinhVien = () => {
               )}
 
               <div className="form-row">
-                <div className="form-group">
+                <div className="form-group" style={{ position: 'relative' }}>
                   <label>
                     <FaUniversity /> Lớp
                   </label>
@@ -384,8 +422,48 @@ const QuanLySinhVien = () => {
                     name="lop"
                     value={formData.lop}
                     onChange={handleChange}
-                    placeholder="VD: 11DHTH01"
+                    onFocus={() => {
+                      if (formData.lop) {
+                        const filtered = danhSachLop.filter(lop => 
+                          lop.toLowerCase().includes(formData.lop.toLowerCase())
+                        );
+                        setLopSuggestions(filtered);
+                        setShowSuggestions(true);
+                      }
+                    }}
+                    placeholder="VD: DA22TTA"
                   />
+                  {showSuggestions && lopSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      backgroundColor: 'white',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      zIndex: 1000
+                    }}>
+                      {lopSuggestions.map((lop, index) => (
+                        <div
+                          key={index}
+                          onClick={() => handleSelectLop(lop)}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            borderBottom: index < lopSuggestions.length - 1 ? '1px solid #eee' : 'none'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#f0f0f0'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
+                        >
+                          {lop}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -404,17 +482,19 @@ const QuanLySinhVien = () => {
 
               <div className="form-group">
                 <label>
-                  <FaCalendarAlt /> Năm sinh
+                  <FaCalendarAlt /> Khóa học
                 </label>
-                <input
-                  type="number"
-                  name="nam_sinh"
-                  value={formData.nam_sinh}
+                <select
+                  name="khoa_hoc"
+                  value={formData.khoa_hoc}
                   onChange={handleChange}
-                  placeholder="VD: 2003"
-                  min="1980"
-                  max="2010"
-                />
+                >
+                  <option value="">Chọn khóa</option>
+                  <option value="22">Khóa 22</option>
+                  <option value="23">Khóa 23</option>
+                  <option value="24">Khóa 24</option>
+                  <option value="25">Khóa 25</option>
+                </select>
               </div>
 
               <div className="modal-footer">

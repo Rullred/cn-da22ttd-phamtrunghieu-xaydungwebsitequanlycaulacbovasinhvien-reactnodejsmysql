@@ -12,10 +12,10 @@ router.post('/register', async (req, res) => {
   try {
     console.log('Đăng ký - Request body:', req.body);
     
-    const { email, mat_khau, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh } = req.body;
+    const { email, mat_khau, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc } = req.body;
 
     // Validate dữ liệu đầu vào
-    if (!email || !mat_khau || !ho_ten || !ma_sinh_vien || !lop || !khoa || !nam_sinh) {
+    if (!email || !mat_khau || !ho_ten || !ma_sinh_vien || !lop || !khoa) {
       return res.status(400).json({ 
         message: 'Vui lòng điền đầy đủ thông tin bắt buộc' 
       });
@@ -66,9 +66,9 @@ router.post('/register', async (req, res) => {
 
     // Tạo hồ sơ sinh viên
     await db.query(
-      `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, anh_dai_dien)
+      `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, anh_dai_dien)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, parseInt(nam_sinh), anh_dai_dien]
+      [nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc || null, anh_dai_dien]
     );
 
     console.log('Đã tạo hồ sơ sinh viên');
@@ -154,7 +154,7 @@ router.post('/login', async (req, res) => {
 // Tạo hồ sơ sinh viên sau khi đăng ký Google
 router.post('/create-profile', upload.single('anh_dai_dien'), async (req, res) => {
   try {
-    const { nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh } = req.body;
+    const { nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc } = req.body;
 
     // Kiểm tra người dùng tồn tại và chưa có hồ sơ
     const [users] = await db.query(
@@ -183,9 +183,9 @@ router.post('/create-profile', upload.single('anh_dai_dien'), async (req, res) =
 
     // Tạo hồ sơ sinh viên
     await db.query(
-      `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, anh_dai_dien)
+      `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, anh_dai_dien)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, anh_dai_dien]
+      [nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc || null, anh_dai_dien]
     );
 
     // Cập nhật trạng thái người dùng sang "chờ duyệt"
@@ -228,7 +228,7 @@ router.get('/me', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const [users] = await db.query(
-      `SELECT nd.*, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.nam_sinh, sv.anh_dai_dien
+      `SELECT nd.*, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.khoa_hoc, sv.anh_dai_dien
        FROM nguoi_dung nd
        LEFT JOIN sinh_vien sv ON nd.id = sv.nguoi_dung_id
        WHERE nd.id = ?`,

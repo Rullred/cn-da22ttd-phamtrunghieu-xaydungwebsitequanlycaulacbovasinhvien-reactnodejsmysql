@@ -11,8 +11,17 @@ const Profile = () => {
     ho_ten: '',
     lop: '',
     khoa: '',
-    nam_sinh: ''
+    khoa_hoc: ''
   });
+  const [lopSuggestions, setLopSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const danhSachLop = [
+    'DA22TTA', 'DA22TTB', 'DA22TTC', 'DA22TTD', 'DA22XDA', 'DA22XDB', 'DA22CNOTA', 'DA22CNOTB', 'DA22CNOTC',
+    'DA23TTA', 'DA23TTB', 'DA23TTC', 'DA23TTD', 'DA23XDA', 'DA23XDB', 'DA23CNOTA', 'DA23CNOTB', 'DA23CNOTC',
+    'DA24TTA', 'DA24TTB', 'DA24TTC', 'DA24TTD', 'DA24XDA', 'DA24XDB', 'DA24CNOTA', 'DA24CNOTB', 'DA24CNOTC',
+    'DA25TTA', 'DA25TTB', 'DA25TTC', 'DA25TTD', 'DA25XDA', 'DA25XDB', 'DA25CNOTA', 'DA25CNOTB', 'DA25CNOTC'
+  ];
 
   useEffect(() => {
     fetchProfile();
@@ -26,7 +35,7 @@ const Profile = () => {
         ho_ten: response.data.ho_ten || '',
         lop: response.data.lop || '',
         khoa: response.data.khoa || '',
-        nam_sinh: response.data.nam_sinh || ''
+        khoa_hoc: response.data.khoa_hoc || ''
       });
     } catch (error) {
       console.error('Fetch profile error:', error);
@@ -43,7 +52,7 @@ const Profile = () => {
         ho_ten: formData.ho_ten,
         lop: formData.lop,
         khoa: formData.khoa,
-        nam_sinh: formData.nam_sinh
+        khoa_hoc: formData.khoa_hoc
       });
       alert('Cập nhật hồ sơ thành công!');
       setEditing(false);
@@ -78,15 +87,64 @@ const Profile = () => {
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ position: 'relative' }}>
               <label>Lớp</label>
               <input
                 type="text"
                 className="form-control"
                 value={formData.lop}
-                onChange={(e) => setFormData({...formData, lop: e.target.value})}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData({...formData, lop: value});
+                  if (value.length > 0) {
+                    const filtered = danhSachLop.filter(lop => 
+                      lop.toLowerCase().includes(value.toLowerCase())
+                    );
+                    setLopSuggestions(filtered);
+                    setShowSuggestions(true);
+                  } else {
+                    setShowSuggestions(false);
+                  }
+                }}
+                onFocus={() => setShowSuggestions(formData.lop.length > 0)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                placeholder="VD: DA22TTA, DA23TTB..."
                 required
               />
+              {showSuggestions && lopSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 1000,
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                }}>
+                  {lopSuggestions.map((lop, index) => (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setFormData({ ...formData, lop });
+                        setShowSuggestions(false);
+                      }}
+                      style={{
+                        padding: '10px 15px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f0f0f0'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
+                      onMouseLeave={(e) => e.target.style.background = 'white'}
+                    >
+                      {lop}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="form-group">
@@ -106,16 +164,19 @@ const Profile = () => {
             </div>
 
             <div className="form-group">
-              <label>Năm sinh</label>
-              <input
-                type="number"
+              <label>Khóa</label>
+              <select
                 className="form-control"
-                value={formData.nam_sinh}
-                onChange={(e) => setFormData({...formData, nam_sinh: e.target.value})}
-                min="1990"
-                max="2010"
+                value={formData.khoa_hoc}
+                onChange={(e) => setFormData({...formData, khoa_hoc: e.target.value})}
                 required
-              />
+              >
+                <option value="">-- Chọn khóa --</option>
+                <option value="22">Khóa 22</option>
+                <option value="23">Khóa 23</option>
+                <option value="24">Khóa 24</option>
+                <option value="25">Khóa 25</option>
+              </select>
             </div>
 
             <div className="form-actions">
@@ -148,8 +209,8 @@ const Profile = () => {
               <span>{user.khoa}</span>
             </div>
             <div className="info-item">
-              <strong>Năm sinh:</strong>
-              <span>{user.nam_sinh}</span>
+              <strong>Khóa:</strong>
+              <span>{user.khoa_hoc ? `Khóa ${user.khoa_hoc}` : 'Chưa cập nhật'}</span>
             </div>
             <button onClick={() => setEditing(true)} className="btn btn-primary mt-3">
               Chỉnh sửa

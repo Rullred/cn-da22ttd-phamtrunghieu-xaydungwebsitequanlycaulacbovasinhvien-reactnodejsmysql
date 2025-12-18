@@ -20,6 +20,7 @@ const caulacboRoutes = require('./routes/caulacbo');
 const hoatdongRoutes = require('./routes/hoatdong');
 const thongbaoRoutes = require('./routes/thongbao');
 const danhgiaRoutes = require('./routes/danhgia');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 const server = http.createServer(app);
@@ -54,7 +55,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files
-app.use('/public', express.static(path.join(__dirname, '../public')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Socket.io - Lưu các kết nối socket theo userId
 const userSockets = new Map();
@@ -65,6 +66,32 @@ io.on('connection', (socket) => {
   socket.on('register', (userId) => {
     userSockets.set(userId, socket.id);
     console.log(`User ${userId} registered with socket ${socket.id}`);
+  });
+
+  // Join chat room
+  socket.on('join_room', (roomId) => {
+    socket.join(`room_${roomId}`);
+    console.log(`Socket ${socket.id} joined room_${roomId}`);
+  });
+
+  // Leave chat room
+  socket.on('leave_room', (roomId) => {
+    socket.leave(`room_${roomId}`);
+    console.log(`Socket ${socket.id} left room_${roomId}`);
+  });
+
+  // Typing indicator
+  socket.on('typing', (data) => {
+    socket.to(`room_${data.roomId}`).emit('user_typing', {
+      userId: data.userId,
+      userName: data.userName
+    });
+  });
+
+  socket.on('stop_typing', (data) => {
+    socket.to(`room_${data.roomId}`).emit('user_stop_typing', {
+      userId: data.userId
+    });
   });
 
   socket.on('disconnect', () => {
@@ -97,6 +124,7 @@ app.use('/api/caulacbo', caulacboRoutes);
 app.use('/api/hoatdong', hoatdongRoutes);
 app.use('/api/thongbao', thongbaoRoutes);
 app.use('/api/danhgia', danhgiaRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Route mặc định
 app.get('/', (req, res) => {

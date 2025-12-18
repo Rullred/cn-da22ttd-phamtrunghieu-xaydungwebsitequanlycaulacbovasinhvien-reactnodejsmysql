@@ -249,7 +249,7 @@ router.post('/join-club/:clb_id', async (req, res) => {
 // Cập nhật hồ sơ
 router.put('/profile', async (req, res) => {
   try {
-    const { ho_ten, lop, khoa, nam_sinh } = req.body;
+    const { ho_ten, lop, khoa, khoa_hoc } = req.body;
 
     const [sinhvien] = await db.query(
       'SELECT id FROM sinh_vien WHERE nguoi_dung_id = ?',
@@ -261,8 +261,8 @@ router.put('/profile', async (req, res) => {
     }
 
     await db.query(
-      'UPDATE sinh_vien SET ho_ten = ?, lop = ?, khoa = ?, nam_sinh = ? WHERE id = ?',
-      [ho_ten, lop, khoa, parseInt(nam_sinh), sinhvien[0].id]
+      'UPDATE sinh_vien SET ho_ten = ?, lop = ?, khoa = ?, khoa_hoc = ? WHERE id = ?',
+      [ho_ten, lop, khoa, khoa_hoc || null, sinhvien[0].id]
     );
 
     res.json({ message: 'Cập nhật hồ sơ thành công' });

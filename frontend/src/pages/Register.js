@@ -20,7 +20,7 @@ const Register = () => {
     ma_sinh_vien: '',
     lop: '',
     khoa: '',
-    nam_sinh: ''
+    khoa_hoc: ''
   });
 
   const handleChange = (e) => {
@@ -211,19 +211,21 @@ const Register = () => {
 
               <div className="form-group">
                 <label>
-                  <FaCalendar /> Năm sinh *
+                  <FaCalendar /> Khóa học *
                 </label>
-                <input
-                  type="number"
-                  name="nam_sinh"
+                <select
+                  name="khoa_hoc"
                   className="form-control"
-                  value={formData.nam_sinh}
+                  value={formData.khoa_hoc}
                   onChange={handleChange}
-                  min="1990"
-                  max="2010"
-                  placeholder="Năm sinh"
                   required
-                />
+                >
+                  <option value="">Chọn khóa</option>
+                  <option value="22">Khóa 22</option>
+                  <option value="23">Khóa 23</option>
+                  <option value="24">Khóa 24</option>
+                  <option value="25">Khóa 25</option>
+                </select>
               </div>
             </div>
 

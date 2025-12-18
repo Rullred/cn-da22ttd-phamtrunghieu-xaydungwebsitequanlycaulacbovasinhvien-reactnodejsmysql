@@ -27,7 +27,7 @@ CREATE TABLE sinh_vien (
   ma_sinh_vien VARCHAR(50) UNIQUE NOT NULL,
   lop VARCHAR(100),
   khoa VARCHAR(255),
-  nam_sinh INT,
+  khoa_hoc VARCHAR(10), -- Khóa học: 22, 23, 24, 25...
   so_dien_thoai VARCHAR(20),
   anh_dai_dien VARCHAR(255) DEFAULT '/public/images/default-avatar.jpg',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

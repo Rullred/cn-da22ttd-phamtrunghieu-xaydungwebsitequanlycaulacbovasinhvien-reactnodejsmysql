@@ -13,7 +13,7 @@ router.get('/pending-accounts', async (req, res) => {
   try {
     const [accounts] = await db.query(
       `SELECT nd.id, nd.email, nd.loai_nguoi_dung, nd.trang_thai, nd.created_at,
-              sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.nam_sinh, sv.anh_dai_dien
+              sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.khoa_hoc, sv.anh_dai_dien
        FROM nguoi_dung nd
        LEFT JOIN sinh_vien sv ON nd.id = sv.nguoi_dung_id
        WHERE nd.trang_thai = 'cho_duyet'
@@ -429,7 +429,7 @@ router.post('/students', async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    const { email, mat_khau, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai } = req.body;
+    const { email, mat_khau, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, so_dien_thoai } = req.body;
     
     console.log('Tạo sinh viên:', { email, ma_sinh_vien, ho_ten });
     
@@ -485,9 +485,9 @@ router.post('/students', async (req, res) => {
       
       // Tạo thông tin sinh viên
       await connection.query(
-        `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai)
+        `INSERT INTO sinh_vien (nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, so_dien_thoai)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [nguoi_dung_id, ho_ten, ma_sinh_vien, lop || null, khoa || null, nam_sinh || null, so_dien_thoai || null]
+        [nguoi_dung_id, ho_ten, ma_sinh_vien, lop || null, khoa || null, khoa_hoc || null, so_dien_thoai || null]
       );
       
       // Commit transaction
@@ -513,7 +513,7 @@ router.post('/students', async (req, res) => {
 router.put('/students/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai, email } = req.body;
+    const { ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, so_dien_thoai, email } = req.body;
     
     // Lấy thông tin sinh viên hiện tại
     const [currentStudent] = await db.query(
@@ -540,9 +540,9 @@ router.put('/students/:id', async (req, res) => {
     // Cập nhật thông tin sinh viên
     await db.query(
       `UPDATE sinh_vien 
-       SET ho_ten = ?, ma_sinh_vien = ?, lop = ?, khoa = ?, nam_sinh = ?, so_dien_thoai = ?
+       SET ho_ten = ?, ma_sinh_vien = ?, lop = ?, khoa = ?, khoa_hoc = ?, so_dien_thoai = ?
        WHERE id = ?`,
-      [ho_ten, ma_sinh_vien, lop, khoa, nam_sinh, so_dien_thoai, id]
+      [ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc, so_dien_thoai, id]
     );
     
     // Cập nhật email nếu có

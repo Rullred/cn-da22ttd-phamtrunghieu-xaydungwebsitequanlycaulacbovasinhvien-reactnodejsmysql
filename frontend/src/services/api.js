@@ -122,4 +122,21 @@ export const danhgiaService = {
   getRatingStats: () => api.get('/danhgia/stats')
 };
 
+// Chat services
+export const chatService = {
+  getRooms: () => api.get('/chat/rooms'),
+  getRoomDetail: (roomId) => api.get(`/chat/room/${roomId}`),
+  sendMessage: (roomId, noi_dung, loai_tin_nhan = 'text') => 
+    api.post(`/chat/room/${roomId}/message`, { noi_dung, loai_tin_nhan }),
+  sendImage: (roomId, formData) => 
+    api.post(`/chat/room/${roomId}/image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  getMessages: (roomId, before_id, limit = 50) => 
+    api.get(`/chat/room/${roomId}/messages`, { params: { before_id, limit } }),
+  deleteRoom: (roomId) => api.delete(`/chat/room/${roomId}`),
+  kickMember: (roomId, memberId) => api.delete(`/chat/room/${roomId}/member/${memberId}`),
+  syncRooms: () => api.post('/chat/sync')
+};
+
 export default api;

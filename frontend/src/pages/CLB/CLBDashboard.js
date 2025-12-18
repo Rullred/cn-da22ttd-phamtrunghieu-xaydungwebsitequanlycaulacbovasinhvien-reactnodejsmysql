@@ -22,7 +22,10 @@ import DanhSachDangKy from './DanhSachDangKy';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
 import DanhGia from './DanhGia';
+import ChatList from '../Chat/ChatList';
+import ChatRoom from '../Chat/ChatRoom';
 import './CLBDashboard.css';
+import { FaComments } from 'react-icons/fa';
 
 const CLBHome = () => {
   const [club, setClub] = useState(null);
@@ -286,6 +289,13 @@ const CLBDashboard = () => {
             <FaCommentDots />
             <span>Đánh giá</span>
           </Link>
+          <Link 
+            to="/caulacbo/chat" 
+            className={`nav-item ${location.pathname === '/caulacbo/chat' ? 'active' : ''}`}
+          >
+            <FaComments />
+            <span>Phòng chat</span>
+          </Link>
         </nav>
         <div className="sidebar-footer-clb">
           <div className="clb-stats-mini">
@@ -310,6 +320,8 @@ const CLBDashboard = () => {
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
           <Route path="danh-gia" element={<DanhGia />} />
+          <Route path="chat" element={<ChatList />} />
+          <Route path="chat/:roomId" element={<ChatRoom />} />
         </Routes>
       </div>
     </div>
