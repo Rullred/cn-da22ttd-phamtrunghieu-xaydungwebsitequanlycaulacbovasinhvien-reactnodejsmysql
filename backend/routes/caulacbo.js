@@ -138,9 +138,18 @@ router.get('/activity-registrations/:hoat_dong_id', async (req, res) => {
     const { hoat_dong_id } = req.params;
 
     const [registrations] = await db.query(
-      `SELECT dk.*, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.anh_dai_dien
+      `SELECT 
+         dk.*,
+         dk.ngay_duyet as ngay_duyet_lan_1,
+         sv.ho_ten, 
+         sv.ma_sinh_vien, 
+         sv.lop, 
+         sv.khoa, 
+         sv.anh_dai_dien,
+         hd.ten_hoat_dong
        FROM dang_ky_hoat_dong dk
        JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
        WHERE dk.hoat_dong_id = ?
        ORDER BY dk.ngay_dang_ky DESC`,
       [hoat_dong_id]
@@ -152,7 +161,7 @@ router.get('/activity-registrations/:hoat_dong_id', async (req, res) => {
   }
 });
 
-// Phê duyệt đăng ký hoạt động
+// Phê duyệt đăng ký hoạt động (Lần 1 - Cho phép tham gia)
 router.post('/approve-registration/:id', async (req, res) => {
   try {
     const { id } = req.params; // DangKyHoatDong id
@@ -169,14 +178,14 @@ router.post('/approve-registration/:id', async (req, res) => {
 
     const { hoat_dong_id, trang_thai } = regInfo[0];
 
-    // Cập nhật trạng thái
+    // Cập nhật trạng thái sang 'dang_tham_gia' (đã duyệt lần 1)
     await db.query(
-      'UPDATE dang_ky_hoat_dong SET trang_thai = "da_duyet", ngay_duyet = NOW() WHERE id = ?',
+      'UPDATE dang_ky_hoat_dong SET trang_thai = "dang_tham_gia", ngay_duyet_lan_1 = NOW() WHERE id = ?',
       [id]
     );
 
-    // Nếu trạng thái cũ không phải "da_duyet", tăng số lượng
-    if (trang_thai !== 'da_duyet') {
+    // Nếu trạng thái cũ không phải "dang_tham_gia", tăng số lượng
+    if (trang_thai !== 'dang_tham_gia') {
       await db.query(
         'UPDATE hoat_dong SET so_luong_da_dang_ky = so_luong_da_dang_ky + 1 WHERE id = ?',
         [hoat_dong_id]
@@ -276,6 +285,105 @@ router.post('/reject-registration/:id', async (req, res) => {
     res.json({ message: 'Từ chối thành công' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi từ chối', error: error.message });
+  }
+});
+
+// Xác nhận hoàn thành hoạt động (Lần 2 - Xác nhận đã tham gia)
+router.post('/confirm-completion/:id', async (req, res) => {
+  try {
+    const { id } = req.params; // DangKyHoatDong id
+
+    // Lấy thông tin đăng ký
+    const [regInfo] = await db.query(
+      'SELECT hoat_dong_id, trang_thai FROM dang_ky_hoat_dong WHERE id = ?',
+      [id]
+    );
+
+    if (regInfo.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy đăng ký' });
+    }
+
+    const { trang_thai } = regInfo[0];
+
+    // Chỉ cho phép xác nhận nếu đã được duyệt lần 1
+    if (trang_thai !== 'dang_tham_gia') {
+      return res.status(400).json({ message: 'Sinh viên chưa được duyệt tham gia hoạt động' });
+    }
+
+    // Cập nhật trạng thái sang 'hoan_thanh' (đã duyệt lần 2)
+    await db.query(
+      'UPDATE dang_ky_hoat_dong SET trang_thai = "hoan_thanh", ngay_duyet_lan_2 = NOW() WHERE id = ?',
+      [id]
+    );
+
+    // Lấy thông tin để gửi thông báo
+    const [info] = await db.query(
+      `SELECT sv.nguoi_dung_id, hd.ten_hoat_dong
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id = ?`,
+      [id]
+    );
+
+    if (info.length > 0) {
+      const { nguoi_dung_id, ten_hoat_dong } = info[0];
+
+      // Gửi thông báo
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'duyet_hoat_dong', 'Hoàn thành hoạt động', ?)`,
+        [nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". Cảm ơn bạn đã tham gia!`]
+      );
+
+      // Real-time notification
+      const io = req.app.get('io');
+      const userSockets = req.app.get('userSockets');
+      const socketId = userSockets.get(nguoi_dung_id);
+      
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'duyet_hoat_dong',
+          message: `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}"`
+        });
+      }
+    }
+
+    res.json({ message: 'Xác nhận hoàn thành thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi xác nhận', error: error.message });
+  }
+});
+
+// Xuất danh sách sinh viên đã hoàn thành hoạt động
+router.get('/completed-participants/:hoat_dong_id', async (req, res) => {
+  try {
+    const { hoat_dong_id } = req.params;
+
+    const [participants] = await db.query(
+      `SELECT 
+         dk.id,
+         dk.ngay_dang_ky,
+         dk.ngay_duyet_lan_1,
+         dk.ngay_duyet_lan_2,
+         sv.ho_ten,
+         sv.ma_sinh_vien,
+         sv.lop,
+         sv.khoa,
+         sv.khoa_hoc,
+         sv.anh_dai_dien,
+         hd.ten_hoat_dong
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.hoat_dong_id = ? AND dk.trang_thai = 'hoan_thanh'
+       ORDER BY dk.ngay_duyet_lan_2 DESC`,
+      [hoat_dong_id]
+    );
+
+    res.json(participants);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy danh sách', error: error.message });
   }
 });
 

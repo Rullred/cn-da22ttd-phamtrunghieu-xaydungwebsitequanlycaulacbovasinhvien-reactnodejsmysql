@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { clbService } from '../../services/api';
 import { 
   FaPlus, 
@@ -19,6 +19,7 @@ import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
 import QuanLyThanhVien from './QuanLyThanhVien';
 import DanhSachDangKy from './DanhSachDangKy';
+import DuyetThamGiaHoatDong from './DuyetThamGiaHoatDong';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
 import DanhGia from './DanhGia';
@@ -28,6 +29,7 @@ import './CLBDashboard.css';
 import { FaComments } from 'react-icons/fa';
 
 const CLBHome = () => {
+  const navigate = useNavigate();
   const [club, setClub] = useState(null);
   const [stats, setStats] = useState({
     activities: 0,
@@ -86,7 +88,8 @@ const CLBHome = () => {
       color: 'primary',
       gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
       change: '+3 tháng này',
-      bgPattern: 'pattern1'
+      bgPattern: 'pattern1',
+      link: '/caulacbo/hoat-dong'
     },
     {
       icon: FaUsers,
@@ -95,7 +98,8 @@ const CLBHome = () => {
       color: 'success',
       gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
       change: `+${stats.pending} mới`,
-      bgPattern: 'pattern2'
+      bgPattern: 'pattern2',
+      link: '/caulacbo/thanh-vien'
     },
     {
       icon: FaUserCheck,
@@ -104,7 +108,8 @@ const CLBHome = () => {
       color: 'warning',
       gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
       change: 'Cần xử lý',
-      bgPattern: 'pattern3'
+      bgPattern: 'pattern3',
+      link: '/caulacbo/thanh-vien'
     }
   ];
 
@@ -134,7 +139,12 @@ const CLBHome = () => {
       <div className="stats-container">
         <div className="stats-grid-clb">
           {statsData.map((stat, index) => (
-            <div key={index} className={`stat-card-clb stat-${stat.color}`}>
+            <div 
+              key={index} 
+              className={`stat-card-clb stat-${stat.color}`}
+              onClick={() => navigate(stat.link)}
+              style={{ cursor: 'pointer' }}
+            >
               <div className={`stat-bg-pattern ${stat.bgPattern}`}></div>
               <div className="stat-card-content">
                 <div className="stat-top">
@@ -315,6 +325,7 @@ const CLBDashboard = () => {
           <Route index element={<CLBHome />} />
           <Route path="tao-hoat-dong" element={<TaoHoatDong />} />
           <Route path="hoat-dong" element={<QuanLyHoatDong />} />
+          <Route path="duyet-tham-gia/:hoat_dong_id" element={<DuyetThamGiaHoatDong />} />
           <Route path="thanh-vien" element={<QuanLyThanhVien />} />
           <Route path="danh-sach-dang-ky/:hoatDongId" element={<DanhSachDangKy />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />

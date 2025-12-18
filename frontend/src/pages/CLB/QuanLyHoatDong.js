@@ -214,8 +214,8 @@ const QuanLyHoatDong = () => {
                 <button className="btn-detail" onClick={() => showDetail(activity)}>
                   <FaInfoCircle /> Chi tiết
                 </button>
-                <button className="btn-view" onClick={() => viewRegistrations(activity.id)}>
-                  <FaEye /> Xem đăng ký
+                <button className="btn-view" onClick={() => navigate(`/caulacbo/duyet-tham-gia/${activity.id}`)}>
+                  <FaEye /> Quản lý duyệt
                 </button>
                 <button className="btn-delete" onClick={() => handleDelete(activity.id)}>
                   <FaTrash /> Xóa

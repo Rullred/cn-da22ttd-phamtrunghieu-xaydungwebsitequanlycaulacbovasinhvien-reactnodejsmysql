@@ -92,10 +92,11 @@ CREATE TABLE dang_ky_hoat_dong (
   id INT PRIMARY KEY AUTO_INCREMENT,
   hoat_dong_id INT NOT NULL,
   sinh_vien_id INT NOT NULL,
-  trang_thai ENUM('cho_duyet', 'da_duyet', 'tu_choi', 'da_huy') DEFAULT 'cho_duyet',
+  trang_thai ENUM('cho_duyet', 'da_duyet', 'tu_choi', 'da_huy', 'dang_tham_gia', 'hoan_thanh') DEFAULT 'cho_duyet',
   ghi_chu TEXT,
   ngay_dang_ky DATETIME DEFAULT CURRENT_TIMESTAMP,
-  ngay_duyet DATETIME,
+  ngay_duyet_lan_1 DATETIME, -- Duyệt cho tham gia hoạt động
+  ngay_duyet_lan_2 DATETIME, -- Xác nhận đã tham gia xong
   FOREIGN KEY (hoat_dong_id) REFERENCES hoat_dong(id) ON DELETE CASCADE,
   FOREIGN KEY (sinh_vien_id) REFERENCES sinh_vien(id) ON DELETE CASCADE,
   UNIQUE KEY unique_registration (hoat_dong_id, sinh_vien_id),
@@ -144,7 +145,7 @@ CREATE TRIGGER update_so_luong_dang_ky_insert
 AFTER INSERT ON dang_ky_hoat_dong
 FOR EACH ROW
 BEGIN
-  IF NEW.trang_thai = 'da_duyet' THEN
+  IF NEW.trang_thai = 'dang_tham_gia' THEN
     UPDATE hoat_dong 
     SET so_luong_da_dang_ky = so_luong_da_dang_ky + 1 
     WHERE id = NEW.hoat_dong_id;
@@ -155,11 +156,11 @@ CREATE TRIGGER update_so_luong_dang_ky_update
 AFTER UPDATE ON dang_ky_hoat_dong
 FOR EACH ROW
 BEGIN
-  IF OLD.trang_thai != 'da_duyet' AND NEW.trang_thai = 'da_duyet' THEN
+  IF OLD.trang_thai != 'dang_tham_gia' AND NEW.trang_thai = 'dang_tham_gia' THEN
     UPDATE hoat_dong 
     SET so_luong_da_dang_ky = so_luong_da_dang_ky + 1 
     WHERE id = NEW.hoat_dong_id;
-  ELSEIF OLD.trang_thai = 'da_duyet' AND NEW.trang_thai != 'da_duyet' THEN
+  ELSEIF OLD.trang_thai = 'dang_tham_gia' AND NEW.trang_thai != 'dang_tham_gia' THEN
     UPDATE hoat_dong 
     SET so_luong_da_dang_ky = so_luong_da_dang_ky - 1 
     WHERE id = NEW.hoat_dong_id;
