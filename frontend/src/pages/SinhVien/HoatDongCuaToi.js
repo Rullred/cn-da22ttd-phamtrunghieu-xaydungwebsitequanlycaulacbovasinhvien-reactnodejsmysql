@@ -35,10 +35,22 @@ const HoatDongCuaToi = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, activityStatus) => {
+    // Nếu hoạt động bị hủy bởi CLB
+    if (activityStatus === 'huy') {
+      return (
+        <span className="status-badge activity-cancelled">
+          <FaTimesCircle />
+          Hoạt động đã hủy
+        </span>
+      );
+    }
+
     const badges = {
       'cho_duyet': { class: 'pending', text: 'Chờ duyệt', icon: <FaClock /> },
       'da_duyet': { class: 'approved', text: 'Đã duyệt', icon: <FaCheckCircle /> },
+      'dang_tham_gia': { class: 'approved', text: 'Đang tham gia', icon: <FaCheckCircle /> },
+      'hoan_thanh': { class: 'completed', text: 'Hoàn thành', icon: <FaCheckCircle /> },
       'tu_choi': { class: 'rejected', text: 'Bị từ chối', icon: <FaTimesCircle /> },
       'da_huy': { class: 'cancelled', text: 'Đã hủy', icon: <FaTimesCircle /> }
     };
@@ -53,11 +65,13 @@ const HoatDongCuaToi = () => {
 
   const getActivityStats = () => {
     const total = activities.length;
-    const approved = activities.filter(a => a.trang_thai_dang_ky === 'da_duyet').length;
+    const approved = activities.filter(a => a.trang_thai_dang_ky === 'da_duyet' || a.trang_thai_dang_ky === 'dang_tham_gia').length;
     const pending = activities.filter(a => a.trang_thai_dang_ky === 'cho_duyet').length;
     const rejected = activities.filter(a => a.trang_thai_dang_ky === 'tu_choi').length;
+    const cancelled = activities.filter(a => a.trang_thai === 'huy' || a.trang_thai_dang_ky === 'da_huy').length;
+    const completed = activities.filter(a => a.trang_thai_dang_ky === 'hoan_thanh').length;
     
-    return { total, approved, pending, rejected };
+    return { total, approved, pending, rejected, cancelled, completed };
   };
 
   if (loading) return <Loading />;
@@ -82,9 +96,13 @@ const HoatDongCuaToi = () => {
             <h3>Chờ duyệt</h3>
             <p className="number">{stats.pending}</p>
           </div>
-          <div className="stat-card rejected">
-            <h3>Bị từ chối</h3>
-            <p className="number">{stats.rejected}</p>
+          <div className="stat-card completed">
+            <h3>Hoàn thành</h3>
+            <p className="number">{stats.completed}</p>
+          </div>
+          <div className="stat-card cancelled">
+            <h3>Đã hủy</h3>
+            <p className="number">{stats.cancelled}</p>
           </div>
         </div>
       )}
@@ -140,7 +158,7 @@ const HoatDongCuaToi = () => {
                       </div>
                     </td>
                     <td>{activity.dia_diem}</td>
-                    <td>{getStatusBadge(activity.trang_thai_dang_ky)}</td>
+                    <td>{getStatusBadge(activity.trang_thai_dang_ky, activity.trang_thai)}</td>
                     <td>
                       {new Date(activity.ngay_dang_ky).toLocaleDateString('vi-VN', {
                         day: '2-digit',

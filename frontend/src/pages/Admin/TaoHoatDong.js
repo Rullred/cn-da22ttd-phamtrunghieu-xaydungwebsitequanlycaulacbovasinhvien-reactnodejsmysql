@@ -1,7 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { clbService } from '../../services/api';
-import { FaCalendarAlt, FaClock, FaMapMarkerAlt, FaTshirt, FaUsers, FaFileAlt, FaBullhorn, FaFlag } from 'react-icons/fa';
+import { adminService } from '../../services/api';
+import { 
+  FaCalendarAlt, 
+  FaClock, 
+  FaMapMarkerAlt, 
+  FaTshirt, 
+  FaUsers, 
+  FaFileAlt, 
+  FaBullhorn, 
+  FaFlag,
+  FaUniversity,
+  FaCheckCircle
+} from 'react-icons/fa';
+import './TaoHoatDong.css';
 
 // Danh sách mục đích hoạt động
 const MUC_DICH_HOAT_DONG = [
@@ -19,7 +31,6 @@ const MUC_DICH_HOAT_DONG = [
 
 const TaoHoatDong = () => {
   const navigate = useNavigate();
-  const [clbInfo, setClbInfo] = useState(null);
   const [formData, setFormData] = useState({
     ten_hoat_dong: '',
     mo_ta: '',
@@ -29,26 +40,14 @@ const TaoHoatDong = () => {
     dia_diem: '',
     quy_dinh_trang_phuc: '',
     so_luong_toi_da: 0,
-    muc_dich: ''
+    muc_dich: '',
+    don_vi_phu_trach: 'Đoàn trường Kỹ thuật và Công nghệ TVU'
   });
-
-  useEffect(() => {
-    fetchClbInfo();
-  }, []);
-
-  const fetchClbInfo = async () => {
-    try {
-      const response = await clbService.getMyClub();
-      setClbInfo(response.data);
-    } catch (error) {
-      console.error('Lỗi lấy thông tin CLB:', error);
-    }
-  };
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    // Validation: Nếu thay đổi giờ kết thúc, kiểm tra phải sau giờ bắt đầu
     if (name === 'gio_ket_thuc' && formData.gio_bat_dau) {
       if (value <= formData.gio_bat_dau) {
         alert('Giờ kết thúc phải sau giờ bắt đầu!');
@@ -65,7 +64,11 @@ const TaoHoatDong = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
+    if (!formData.don_vi_phu_trach) {
+      alert('Vui lòng nhập đơn vị phụ trách!');
+      return;
+    }
+
     if (!formData.ngay_to_chuc || !formData.gio_bat_dau || !formData.gio_ket_thuc) {
       alert('Vui lòng điền đầy đủ ngày và giờ tổ chức!');
       return;
@@ -76,7 +79,6 @@ const TaoHoatDong = () => {
       return;
     }
 
-    // Ghép ngày + giờ thành datetime
     const thoi_gian_bat_dau = `${formData.ngay_to_chuc} ${formData.gio_bat_dau}:00`;
     const thoi_gian_ket_thuc = `${formData.ngay_to_chuc} ${formData.gio_ket_thuc}:00`;
 
@@ -86,25 +88,31 @@ const TaoHoatDong = () => {
       thoi_gian_ket_thuc
     };
 
+    setLoading(true);
     try {
-      await clbService.createActivity(dataToSend);
-      alert('Tạo hoạt động thành công!');
-      navigate('/caulacbo/hoat-dong');
+      await adminService.createActivity(dataToSend);
+      alert('Tạo hoạt động thành công! Hoạt động đã được tự động phê duyệt.');
+      navigate('/admin');
     } catch (error) {
       alert('Lỗi: ' + (error.response?.data?.message || 'Không thể tạo hoạt động'));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="tao-hoat-dong-container">
+    <div className="admin-tao-hoat-dong-container">
       <div className="activity-form-card">
-        {/* Header với tên CLB */}
+        {/* Header */}
         <div className="form-header">
           <div className="header-icon">
             <FaBullhorn />
           </div>
           <div className="header-content">
-            <h2>{clbInfo?.ten_clb || 'Đang tải...'}</h2>
+            <h2>Tạo hoạt động mới</h2>
+            <p className="header-note">
+              <FaCheckCircle /> Hoạt động sẽ được tự động phê duyệt
+            </p>
           </div>
         </div>
 
@@ -123,6 +131,24 @@ const TaoHoatDong = () => {
                 value={formData.ten_hoat_dong}
                 onChange={handleChange}
                 placeholder='VD: "THỨ 7 TÌNH NGUYỆN, CHỦ NHẬT XANH"'
+                required
+              />
+            </div>
+          </div>
+
+          {/* Đơn vị phụ trách */}
+          <div className="form-item">
+            <div className="item-icon clb">
+              <FaUniversity />
+            </div>
+            <div className="item-content">
+              <label className="item-label">Đơn vị phụ trách *</label>
+              <input
+                type="text"
+                name="don_vi_phu_trach"
+                className="form-input"
+                value={formData.don_vi_phu_trach}
+                onChange={handleChange}
                 required
               />
             </div>
@@ -283,12 +309,12 @@ const TaoHoatDong = () => {
 
           {/* Buttons */}
           <div className="form-actions">
-            <button type="submit" className="btn btn-create">
-              <FaBullhorn /> Tạo thông báo hoạt động
+            <button type="submit" className="btn btn-create" disabled={loading}>
+              <FaBullhorn /> {loading ? 'Đang tạo...' : 'Tạo hoạt động'}
             </button>
             <button 
               type="button" 
-              onClick={() => navigate('/caulacbo/hoat-dong')} 
+              onClick={() => navigate('/admin')} 
               className="btn btn-cancel"
             >
               Hủy
@@ -296,219 +322,6 @@ const TaoHoatDong = () => {
           </div>
         </form>
       </div>
-
-      <style>{`
-        .tao-hoat-dong-container {
-          padding: 20px;
-          max-width: 900px;
-          margin: 0 auto;
-        }
-
-        .activity-form-card {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 16px;
-          padding: 0;
-          box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
-          overflow: hidden;
-        }
-
-        .form-header {
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-          padding: 24px;
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          color: white;
-        }
-
-        .header-icon {
-          background: rgba(255, 255, 255, 0.3);
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-          flex-shrink: 0;
-        }
-
-        .header-content h2 {
-          margin: 0;
-          font-size: 18px;
-          font-weight: 700;
-          line-height: 1.4;
-          text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .activity-form {
-          background: white;
-          padding: 32px;
-        }
-
-        .form-item {
-          display: flex;
-          gap: 16px;
-          margin-bottom: 24px;
-          align-items: flex-start;
-        }
-
-        .form-item-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-bottom: 24px;
-        }
-
-        .item-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 18px;
-          flex-shrink: 0;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .item-icon.warning {
-          background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-          box-shadow: 0 4px 12px rgba(245, 87, 108, 0.3);
-        }
-
-        .item-icon.location {
-          background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-          box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
-        }
-
-        .item-icon.dress {
-          background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-          box-shadow: 0 4px 12px rgba(67, 233, 123, 0.3);
-        }
-
-        .item-icon.members {
-          background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-          box-shadow: 0 4px 12px rgba(250, 112, 154, 0.3);
-        }
-
-        .item-icon.purpose {
-          background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
-          box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
-        }
-
-        .item-content {
-          flex: 1;
-        }
-
-        .item-label {
-          display: block;
-          font-weight: 600;
-          color: #2d3748;
-          margin-bottom: 8px;
-          font-size: 14px;
-        }
-
-        .form-input,
-        .form-textarea {
-          width: 100%;
-          padding: 12px 16px;
-          border: 2px solid #e2e8f0;
-          border-radius: 10px;
-          font-size: 14px;
-          transition: all 0.3s ease;
-          font-family: inherit;
-        }
-
-        .form-input:focus,
-        .form-textarea:focus {
-          outline: none;
-          border-color: #667eea;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .form-textarea {
-          resize: vertical;
-          min-height: 100px;
-        }
-
-        .form-input::placeholder,
-        .form-textarea::placeholder {
-          color: #a0aec0;
-        }
-
-        .form-select {
-          cursor: pointer;
-          appearance: none;
-          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23667eea' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-          background-repeat: no-repeat;
-          background-position: right 16px center;
-          padding-right: 40px;
-        }
-
-        .form-select option {
-          padding: 12px;
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 12px;
-          margin-top: 32px;
-          padding-top: 24px;
-          border-top: 2px solid #e2e8f0;
-        }
-
-        .btn {
-          padding: 14px 28px;
-          border: none;
-          border-radius: 10px;
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .btn-create {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          flex: 1;
-          justify-content: center;
-          box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-create:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
-        }
-
-        .btn-cancel {
-          background: #e2e8f0;
-          color: #4a5568;
-        }
-
-        .btn-cancel:hover {
-          background: #cbd5e0;
-        }
-
-        @media (max-width: 768px) {
-          .form-item-row {
-            grid-template-columns: 1fr;
-          }
-
-          .header-content h2 {
-            font-size: 16px;
-          }
-
-          .activity-form {
-            padding: 20px;
-          }
-        }
-      `}</style>
     </div>
   );
 };

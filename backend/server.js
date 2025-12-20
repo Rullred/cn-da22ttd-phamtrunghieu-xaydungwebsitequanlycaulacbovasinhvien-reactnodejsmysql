@@ -9,7 +9,6 @@ require('dotenv').config();
 // Set timezone to Vietnam
 process.env.TZ = 'Asia/Ho_Chi_Minh';
 
-const passport = require('./config/passport');
 const db = require('./config/database');
 
 // Import routes
@@ -38,21 +37,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Session configuration (using MemoryStore for development)
-// For production, consider using connect-redis or connect-mongo
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: false, // Set true nếu dùng HTTPS
-    maxAge: 24 * 60 * 60 * 1000 // 24 giờ
-  }
-}));
-
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
 
 // Serve static files
 app.use('/public', express.static(path.join(__dirname, 'public')));

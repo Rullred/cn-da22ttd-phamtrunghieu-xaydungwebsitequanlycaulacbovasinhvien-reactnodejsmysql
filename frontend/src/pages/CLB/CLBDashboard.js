@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, Link, useNavigate } from 'react-router-dom';
 import { clbService } from '../../services/api';
 import { 
   FaPlus, 
@@ -13,7 +13,8 @@ import {
   FaStar,
   FaTrophy,
   FaChartLine,
-  FaCommentDots
+  FaCommentDots,
+  FaComments
 } from 'react-icons/fa';
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
@@ -26,7 +27,6 @@ import DanhGia from './DanhGia';
 import ChatList from '../Chat/ChatList';
 import ChatRoom from '../Chat/ChatRoom';
 import './CLBDashboard.css';
-import { FaComments } from 'react-icons/fa';
 
 const CLBHome = () => {
   const navigate = useNavigate();
@@ -236,8 +236,6 @@ const CLBHome = () => {
 };
 
 const CLBDashboard = () => {
-  const location = useLocation();
-
   return (
     <div className="clb-dashboard">
       <div className="clb-sidebar">
@@ -250,62 +248,63 @@ const CLBDashboard = () => {
           </div>
         </div>
         <nav className="clb-nav">
-          <Link 
+          <NavLink 
             to="/caulacbo" 
-            className={`nav-item ${location.pathname === '/caulacbo' ? 'active' : ''}`}
+            end
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaTachometerAlt />
             <span>Tổng quan</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/tao-hoat-dong" 
-            className={`nav-item ${location.pathname === '/caulacbo/tao-hoat-dong' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaPlus />
             <span>Tạo hoạt động</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/hoat-dong" 
-            className={`nav-item ${location.pathname === '/caulacbo/hoat-dong' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaClipboardList />
             <span>Quản lý hoạt động</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/thanh-vien" 
-            className={`nav-item ${location.pathname === '/caulacbo/thanh-vien' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaUsers />
             <span>Quản lý thành viên</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/top-sinh-vien" 
-            className={`nav-item ${location.pathname === '/caulacbo/top-sinh-vien' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaTrophy />
             <span>Top Sinh Viên</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/thong-ke" 
-            className={`nav-item ${location.pathname === '/caulacbo/thong-ke' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaChartLine />
             <span>Thống kê</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/danh-gia" 
-            className={`nav-item ${location.pathname === '/caulacbo/danh-gia' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaCommentDots />
             <span>Đánh giá</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/caulacbo/chat" 
-            className={`nav-item ${location.pathname === '/caulacbo/chat' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaComments />
             <span>Phòng chat</span>
-          </Link>
+          </NavLink>
         </nav>
         <div className="sidebar-footer-clb">
           <div className="clb-stats-mini">

@@ -604,4 +604,221 @@ router.delete('/students/:id', async (req, res) => {
   }
 });
 
+// ==================== TẠO HOẠT ĐỘNG (ADMIN) ====================
+
+// Admin tạo hoạt động - tự động được duyệt, sinh viên đăng ký tự động duyệt lần 1
+router.post('/create-activity', async (req, res) => {
+  try {
+    const { 
+      ten_hoat_dong, 
+      mo_ta, 
+      thoi_gian_bat_dau, 
+      thoi_gian_ket_thuc, 
+      dia_diem, 
+      quy_dinh_trang_phuc, 
+      so_luong_toi_da,
+      muc_dich,
+      don_vi_phu_trach
+    } = req.body;
+
+    console.log('Admin tạo hoạt động:', { ten_hoat_dong, don_vi_phu_trach, muc_dich });
+
+    // Validate dữ liệu bắt buộc
+    if (!ten_hoat_dong || !thoi_gian_bat_dau || !thoi_gian_ket_thuc || !dia_diem) {
+      return res.status(400).json({ message: 'Thiếu thông tin bắt buộc' });
+    }
+
+    if (!don_vi_phu_trach) {
+      return res.status(400).json({ message: 'Vui lòng nhập đơn vị phụ trách' });
+    }
+
+    // Tạo hoạt động với trạng thái đã duyệt (Admin tạo không cần duyệt)
+    // is_admin_activity = true để sinh viên đăng ký tự động được duyệt lần 1
+    const [result] = await db.query(
+      `INSERT INTO hoat_dong (
+        cau_lac_bo_id, don_vi_phu_trach, is_admin_activity, ten_hoat_dong, mo_ta, 
+        thoi_gian_bat_dau, thoi_gian_ket_thuc, dia_diem, quy_dinh_trang_phuc, 
+        so_luong_toi_da, muc_dich, trang_thai, trang_thai_duyet
+      ) VALUES (NULL, ?, TRUE, ?, ?, ?, ?, ?, ?, ?, ?, 'sap_dien_ra', 'da_duyet')`,
+      [
+        don_vi_phu_trach,
+        ten_hoat_dong,
+        mo_ta || null,
+        thoi_gian_bat_dau,
+        thoi_gian_ket_thuc,
+        dia_diem,
+        quy_dinh_trang_phuc || null,
+        so_luong_toi_da || 0,
+        muc_dich || null
+      ]
+    );
+
+    const hoat_dong_id = result.insertId;
+    console.log('Đã tạo hoạt động ID:', hoat_dong_id);
+
+    // Thông báo cho TẤT CẢ SINH VIÊN: Có hoạt động mới từ Admin
+    const [allStudents] = await db.query(
+      `SELECT nguoi_dung_id FROM sinh_vien`
+    );
+
+    const io = req.app.get('io');
+    const messageToStudents = `Hoạt động mới "${ten_hoat_dong}" từ ${don_vi_phu_trach}. Đăng ký ngay để tham gia!`;
+    
+    for (const student of allStudents) {
+      try {
+        await db.query(
+          `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
+           VALUES (?, 'hoat_dong_moi', 'Hoạt động mới', ?, ?)`,
+          [student.nguoi_dung_id, messageToStudents, `/sinhvien/hoat-dong/${hoat_dong_id}`]
+        );
+      } catch (notifError) {
+        console.log('Lỗi tạo thông báo cho sinh viên:', student.nguoi_dung_id, notifError.message);
+      }
+
+      // Gửi socket notification
+      if (io) {
+        try {
+          io.to(`user_${student.nguoi_dung_id}`).emit('new_notification', {
+            loai_thong_bao: 'hoat_dong_moi',
+            tieu_de: 'Hoạt động mới',
+            noi_dung: messageToStudents,
+            lien_ket: `/sinhvien/hoat-dong/${hoat_dong_id}`
+          });
+        } catch (socketError) {
+          console.log('Lỗi gửi socket notification:', socketError.message);
+        }
+      }
+    }
+
+    console.log('Tạo hoạt động thành công');
+    res.json({ 
+      message: 'Tạo hoạt động thành công',
+      hoat_dong_id 
+    });
+  } catch (error) {
+    console.error('Lỗi tạo hoạt động:', error);
+    res.status(500).json({ message: 'Lỗi tạo hoạt động', error: error.message });
+  }
+});
+
+// Lấy danh sách hoạt động Admin đã tạo
+router.get('/my-activities', async (req, res) => {
+  try {
+    const [activities] = await db.query(
+      `SELECT hd.*, 
+              (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'dang_tham_gia') as so_dang_ky,
+              (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'hoan_thanh') as so_hoan_thanh
+       FROM hoat_dong hd
+       WHERE hd.is_admin_activity = TRUE
+       ORDER BY hd.created_at DESC`
+    );
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy danh sách hoạt động', error: error.message });
+  }
+});
+
+// Lấy danh sách sinh viên đăng ký hoạt động Admin
+router.get('/activity-registrations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const [registrations] = await db.query(
+      `SELECT dk.*, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.anh_dai_dien
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       WHERE dk.hoat_dong_id = ?
+       ORDER BY dk.ngay_dang_ky DESC`,
+      [id]
+    );
+    
+    res.json(registrations);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi lấy danh sách đăng ký', error: error.message });
+  }
+});
+
+// Xác nhận hoàn thành (duyệt lần 2) cho sinh viên
+router.post('/confirm-completion/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Cập nhật trạng thái thành hoàn thành
+    await db.query(
+      `UPDATE dang_ky_hoat_dong 
+       SET trang_thai = 'hoan_thanh', ngay_duyet_lan_2 = NOW() 
+       WHERE id = ?`,
+      [id]
+    );
+    
+    // Lấy thông tin để gửi thông báo
+    const [registrations] = await db.query(
+      `SELECT dk.*, sv.nguoi_dung_id, hd.ten_hoat_dong
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id = ?`,
+      [id]
+    );
+    
+    if (registrations.length > 0) {
+      const reg = registrations[0];
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'duyet_hoat_dong', 'Xác nhận hoàn thành hoạt động', ?)`,
+        [reg.nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${reg.ten_hoat_dong}". Điểm rèn luyện đã được cộng!`]
+      );
+    }
+    
+    res.json({ message: 'Xác nhận hoàn thành thành công' });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi xác nhận hoàn thành', error: error.message });
+  }
+});
+
+// Xác nhận hoàn thành hàng loạt
+router.post('/confirm-completion-bulk', async (req, res) => {
+  try {
+    const { registration_ids } = req.body;
+    
+    if (!registration_ids || registration_ids.length === 0) {
+      return res.status(400).json({ message: 'Không có đăng ký nào được chọn' });
+    }
+    
+    // Cập nhật trạng thái hàng loạt
+    await db.query(
+      `UPDATE dang_ky_hoat_dong 
+       SET trang_thai = 'hoan_thanh', ngay_duyet_lan_2 = NOW() 
+       WHERE id IN (?)`,
+      [registration_ids]
+    );
+    
+    // Gửi thông báo cho từng sinh viên
+    const [registrations] = await db.query(
+      `SELECT dk.*, sv.nguoi_dung_id, hd.ten_hoat_dong
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id IN (?)`,
+      [registration_ids]
+    );
+    
+    for (const reg of registrations) {
+      try {
+        await db.query(
+          `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+           VALUES (?, 'duyet_hoat_dong', 'Xác nhận hoàn thành hoạt động', ?)`,
+          [reg.nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${reg.ten_hoat_dong}". Điểm rèn luyện đã được cộng!`]
+        );
+      } catch (e) {
+        console.log('Lỗi gửi thông báo:', e.message);
+      }
+    }
+    
+    res.json({ message: `Đã xác nhận hoàn thành ${registration_ids.length} sinh viên` });
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi xác nhận hoàn thành', error: error.message });
+  }
+});
+
 module.exports = router;

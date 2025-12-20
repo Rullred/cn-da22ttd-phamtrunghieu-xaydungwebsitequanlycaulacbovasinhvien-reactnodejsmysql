@@ -91,6 +91,20 @@
   background: #ef4444;
 }
 
+.stat-card.cancelled {
+  border-left-color: #6b7280;
+}
+.stat-card.cancelled::before {
+  background: #6b7280;
+}
+
+.stat-card.completed {
+  border-left-color: #8b5cf6;
+}
+.stat-card.completed::before {
+  background: #8b5cf6;
+}
+
 .stat-card h3 {
   margin: 0 0 12px 0;
   font-size: 13px;
@@ -209,6 +223,24 @@
   background: #f1f5f9;
   color: #64748b;
   border: 1px solid #e2e8f0;
+}
+
+.status-badge.completed {
+  background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+}
+
+.status-badge.activity-cancelled {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 
 .btn-cancel {

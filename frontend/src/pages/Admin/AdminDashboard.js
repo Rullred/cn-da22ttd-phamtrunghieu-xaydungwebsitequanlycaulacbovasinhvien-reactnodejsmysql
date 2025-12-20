@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, NavLink, Link, useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/api';
 import { 
   FaUsers, 
@@ -13,13 +13,18 @@ import {
   FaCalendarAlt,
   FaUserGraduate,
   FaTrophy,
-  FaChartLine
+  FaChartLine,
+  FaClock,
+  FaPlusCircle,
+  FaListAlt
 } from 'react-icons/fa';
 import PheDuyetHoatDong from './PheDuyetHoatDong';
 import QuanLyCauLacBo from './QuanLyCauLacBo';
 import QuanLySinhVien from './QuanLySinhVien';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
+import TaoHoatDong from './TaoHoatDong';
+import QuanLyHoatDong from './QuanLyHoatDong';
 import './AdminDashboard.css';
 
 const AdminHome = () => {
@@ -92,30 +97,66 @@ const AdminHome = () => {
 
   return (
     <div className="admin-home">
+      {/* Hero Section */}
+      <div className="admin-hero">
+        <div className="hero-content">
+          <div className="hero-text">
+            <h1 className="hero-title">
+              <span className="gradient-text">Chào mừng trở lại,</span>
+              <br />
+              <span className="hero-name">Quản trị viên</span>
+            </h1>
+            <p className="hero-subtitle">
+              Quản lý hệ thống câu lạc bộ và hoạt động sinh viên một cách hiệu quả
+            </p>
+          </div>
+          <div className="hero-illustration">
+            <div className="floating-shape shape-1"></div>
+            <div className="floating-shape shape-2"></div>
+            <div className="floating-shape shape-3"></div>
+            <FaTachometerAlt className="hero-icon" size={120} />
+          </div>
+        </div>
+        <div className="hero-wave">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+            <path d="M0,0 C300,80 600,80 900,0 L1200,0 L1200,120 L0,120 Z" fill="rgba(255,255,255,0.1)"></path>
+          </svg>
+        </div>
+      </div>
+
       <div className="stats-grid">
         {statsData.map((stat, index) => (
           <div 
             key={index} 
-            className={`stat-card stat-${stat.color}`}
+            className={`stat-card stat-${stat.color} animate-${index}`}
             onClick={() => navigate(stat.link)}
             style={{ cursor: 'pointer' }}
           >
             <div className="stat-card-inner">
               <div className="stat-header">
                 <div className="stat-icon" style={{ background: stat.gradient }}>
-                  <stat.icon size={28} />
+                  <stat.icon size={32} />
+                </div>
+                <div className="stat-badge">
+                  <span>+{Math.floor(Math.random() * 30)}%</span>
                 </div>
               </div>
               <div className="stat-content">
-                <h3 className="stat-value">{stat.value.toLocaleString()}</h3>
+                <h3 className="stat-value">
+                  <span className="counting-number">{stat.value.toLocaleString()}</span>
+                </h3>
                 <p className="stat-label">{stat.label}</p>
               </div>
               <div className="stat-footer">
                 <div className="stat-progress">
                   <div 
                     className="stat-progress-bar" 
-                    style={{ background: stat.gradient, width: '70%' }}
+                    style={{ background: stat.gradient, width: `${60 + (index * 10)}%` }}
                   ></div>
+                </div>
+                <div className="stat-trend">
+                  <FaArrowUp className="trend-icon" />
+                  <span>Tăng trưởng tốt</span>
                 </div>
               </div>
             </div>
@@ -124,77 +165,129 @@ const AdminHome = () => {
       </div>
 
       <div className="dashboard-grid">
-        <div className="quick-actions-card">
+        <div className="quick-actions-card glass-card">
           <div className="card-header">
-            <h2 className="card-title">
-              <FaTachometerAlt className="title-icon" />
-              Thao tác nhanh
-            </h2>
+            <div className="card-title-wrapper">
+              <div className="card-icon-wrapper">
+                <FaTachometerAlt className="title-icon pulse-icon" />
+              </div>
+              <div>
+                <h2 className="card-title">Thao tác nhanh</h2>
+                <p className="card-subtitle">Các tính năng thường dùng</p>
+              </div>
+            </div>
           </div>
           <div className="action-buttons-grid">
             <Link to="/admin/phe-duyet" className="action-btn action-btn-primary">
+              <div className="action-btn-bg"></div>
               <div className="action-btn-icon">
-                <FaClipboardCheck size={24} />
+                <FaClipboardCheck size={28} />
               </div>
               <div className="action-btn-content">
                 <h3>Phê duyệt hoạt động</h3>
-                <p>Xét duyệt các hoạt động từ CLB</p>
+                <p>Xét duyệt {statistics.hoat_dong_cho_duyet || 0} hoạt động đang chờ</p>
               </div>
+              <div className="action-btn-arrow">→</div>
             </Link>
             <Link to="/admin/cau-lac-bo" className="action-btn action-btn-success">
+              <div className="action-btn-bg"></div>
               <div className="action-btn-icon">
-                <FaUniversity size={24} />
+                <FaUniversity size={28} />
               </div>
               <div className="action-btn-content">
                 <h3>Quản lý CLB</h3>
-                <p>Giám sát các câu lạc bộ</p>
+                <p>Giám sát {statistics.tong_clb} câu lạc bộ</p>
               </div>
+              <div className="action-btn-arrow">→</div>
             </Link>
             <Link to="/admin/sinh-vien" className="action-btn action-btn-info">
+              <div className="action-btn-bg"></div>
               <div className="action-btn-icon">
-                <FaUserGraduate size={24} />
+                <FaUserGraduate size={28} />
               </div>
               <div className="action-btn-content">
                 <h3>Quản lý sinh viên</h3>
-                <p>Quản lý thông tin sinh viên</p>
+                <p>{statistics.tong_sinh_vien} sinh viên đang hoạt động</p>
               </div>
+              <div className="action-btn-arrow">→</div>
+            </Link>
+            <Link to="/admin/top-sinh-vien" className="action-btn action-btn-warning">
+              <div className="action-btn-bg"></div>
+              <div className="action-btn-icon">
+                <FaTrophy size={28} />
+              </div>
+              <div className="action-btn-content">
+                <h3>Bảng xếp hạng</h3>
+                <p>Xem top sinh viên nổi bật</p>
+              </div>
+              <div className="action-btn-arrow">→</div>
             </Link>
           </div>
         </div>
 
-        <div className="recent-activity-card">
+        <div className="recent-activity-card glass-card">
           <div className="card-header">
-            <h2 className="card-title">
-              <FaChartBar className="title-icon" />
-              Hoạt động gần đây
-            </h2>
+            <div className="card-title-wrapper">
+              <div className="card-icon-wrapper">
+                <FaBell className="title-icon ring-icon" />
+              </div>
+              <div>
+                <h2 className="card-title">Thông báo gần đây</h2>
+                <p className="card-subtitle">Cập nhật mới nhất trong hệ thống</p>
+              </div>
+            </div>
           </div>
           <div className="activity-list">
-            <div className="activity-item">
+            <div className="activity-item slide-in">
               <div className="activity-icon activity-icon-success">
                 <FaUsers />
               </div>
               <div className="activity-content">
-                <p className="activity-text">Có 5 sinh viên mới đăng ký</p>
-                <span className="activity-time">10 phút trước</span>
+                <p className="activity-text">
+                  <strong>{Math.floor(Math.random() * 10 + 1)} sinh viên mới</strong> đăng ký tham gia hệ thống
+                </p>
+                <span className="activity-time">
+                  <FaClock className="time-icon" /> 10 phút trước
+                </span>
               </div>
             </div>
-            <div className="activity-item">
+            <div className="activity-item slide-in" style={{ animationDelay: '0.1s' }}>
               <div className="activity-icon activity-icon-info">
-                <FaUniversity />
+                <FaCalendarAlt />
               </div>
               <div className="activity-content">
-                <p className="activity-text">CLB Nghệ thuật tạo hoạt động mới</p>
-                <span className="activity-time">2 giờ trước</span>
+                <p className="activity-text">
+                  <strong>{statistics.hoat_dong_sap_toi} hoạt động</strong> sẽ diễn ra trong tuần này
+                </p>
+                <span className="activity-time">
+                  <FaClock className="time-icon" /> 1 giờ trước
+                </span>
               </div>
             </div>
-            <div className="activity-item">
+            <div className="activity-item slide-in" style={{ animationDelay: '0.2s' }}>
               <div className="activity-icon activity-icon-warning">
                 <FaClipboardCheck />
               </div>
               <div className="activity-content">
-                <p className="activity-text">3 hoạt động chờ phê duyệt</p>
-                <span className="activity-time">5 giờ trước</span>
+                <p className="activity-text">
+                  <strong>{statistics.hoat_dong_cho_duyet || 0} hoạt động</strong> đang chờ phê duyệt từ admin
+                </p>
+                <span className="activity-time">
+                  <FaClock className="time-icon" /> 2 giờ trước
+                </span>
+              </div>
+            </div>
+            <div className="activity-item slide-in" style={{ animationDelay: '0.3s' }}>
+              <div className="activity-icon activity-icon-primary">
+                <FaChartLine />
+              </div>
+              <div className="activity-content">
+                <p className="activity-text">
+                  Hệ thống đang hoạt động ổn định với <strong>{statistics.tong_clb} CLB</strong>
+                </p>
+                <span className="activity-time">
+                  <FaClock className="time-icon" /> 5 giờ trước
+                </span>
               </div>
             </div>
           </div>
@@ -205,8 +298,6 @@ const AdminHome = () => {
 };
 
 const AdminDashboard = () => {
-  const location = useLocation();
-
   return (
     <div className="admin-dashboard">
       <div className="admin-sidebar">
@@ -219,48 +310,63 @@ const AdminDashboard = () => {
           </div>
         </div>
         <nav className="admin-nav">
-          <Link 
+          <NavLink 
             to="/admin" 
-            className={`nav-item ${location.pathname === '/admin' ? 'active' : ''}`}
+            end
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaChartBar />
             <span>Tổng quan</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
+            to="/admin/tao-hoat-dong" 
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <FaPlusCircle />
+            <span>Tạo hoạt động</span>
+          </NavLink>
+          <NavLink 
+            to="/admin/quan-ly-hoat-dong" 
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <FaListAlt />
+            <span>Quản lý hoạt động</span>
+          </NavLink>
+          <NavLink 
             to="/admin/phe-duyet" 
-            className={`nav-item ${location.pathname === '/admin/phe-duyet' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaClipboardCheck />
             <span>Phê duyệt hoạt động</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/admin/cau-lac-bo" 
-            className={`nav-item ${location.pathname === '/admin/cau-lac-bo' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaUniversity />
             <span>Quản lý CLB</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/admin/sinh-vien" 
-            className={`nav-item ${location.pathname === '/admin/sinh-vien' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaUserGraduate />
             <span>Quản lý sinh viên</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/admin/top-sinh-vien" 
-            className={`nav-item ${location.pathname === '/admin/top-sinh-vien' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaTrophy />
             <span>Top Sinh Viên</span>
-          </Link>
-          <Link 
+          </NavLink>
+          <NavLink 
             to="/admin/thong-ke" 
-            className={`nav-item ${location.pathname === '/admin/thong-ke' ? 'active' : ''}`}
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
             <FaChartLine />
             <span>Thống kê</span>
-          </Link>
+          </NavLink>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -278,6 +384,8 @@ const AdminDashboard = () => {
       <div className="admin-content">
         <Routes>
           <Route index element={<AdminHome />} />
+          <Route path="tao-hoat-dong" element={<TaoHoatDong />} />
+          <Route path="quan-ly-hoat-dong" element={<QuanLyHoatDong />} />
           <Route path="phe-duyet" element={<PheDuyetHoatDong />} />
           <Route path="cau-lac-bo" element={<QuanLyCauLacBo />} />
           <Route path="sinh-vien" element={<QuanLySinhVien />} />

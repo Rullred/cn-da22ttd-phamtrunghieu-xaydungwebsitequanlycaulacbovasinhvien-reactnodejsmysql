@@ -257,29 +257,6 @@
   font-weight: 500;
 }
 
-/* Google Button */
-.btn-google {
-  background: white;
-  color: #1e293b;
-  border: 2px solid #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-.btn-google:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.btn-google img {
-  width: 20px;
-  height: 20px;
-}
-
 /* Responsive */
 @media (max-width: 576px) {
   .login-box {

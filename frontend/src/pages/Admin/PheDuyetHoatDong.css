@@ -129,15 +129,22 @@
 .activity-icon-wrapper {
   width: 60px;
   height: 60px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #667eea;
   position: relative;
   z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.activity-icon-wrapper svg {
+  color: #4a5fd9 !important;
+  font-size: 28px;
+  filter: drop-shadow(0 2px 4px rgba(74, 95, 217, 0.3));
 }
 
 /* Card Body */
@@ -164,8 +171,9 @@
 }
 
 .club-icon {
-  color: #667eea;
-  font-size: 18px;
+  color: #4a5fd9;
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(74, 95, 217, 0.3));
 }
 
 .club-name {
@@ -215,10 +223,13 @@
 }
 
 .detail-icon {
-  color: #667eea;
-  font-size: 16px;
+  color: #4a5fd9;
+  font-size: 22px;
   margin-top: 2px;
   flex-shrink: 0;
+  opacity: 1;
+  font-weight: 700;
+  filter: drop-shadow(0 2px 4px rgba(74, 95, 217, 0.3));
 }
 
 .detail-item > div {

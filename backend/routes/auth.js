@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const passport = require('passport');
 const crypto = require('crypto');
 const db = require('../config/database');
 const upload = require('../middleware/upload');
@@ -151,7 +150,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Tạo hồ sơ sinh viên sau khi đăng ký Google
+// Tạo hồ sơ sinh viên (nếu cần bổ sung sau khi đăng ký)
 router.post('/create-profile', upload.single('anh_dai_dien'), async (req, res) => {
   try {
     const { nguoi_dung_id, ho_ten, ma_sinh_vien, lop, khoa, khoa_hoc } = req.body;
@@ -222,11 +221,21 @@ router.get('/me', async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('GET /me - Token:', token ? 'exists' : 'missing');
+
     if (!token) {
       return res.status(401).json({ message: 'Không tìm thấy token' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('GET /me - Decoded userId:', decoded.userId);
+    } catch (jwtError) {
+      console.log('GET /me - JWT Error:', jwtError.message);
+      return res.status(401).json({ message: 'Token không hợp lệ', error: jwtError.message });
+    }
+
     const [users] = await db.query(
       `SELECT nd.*, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.khoa_hoc, sv.anh_dai_dien
        FROM nguoi_dung nd
@@ -235,6 +244,8 @@ router.get('/me', async (req, res) => {
       [decoded.userId]
     );
 
+    console.log('GET /me - Users found:', users.length);
+
     if (users.length === 0) {
       return res.status(404).json({ message: 'Người dùng không tồn tại' });
     }
@@ -242,8 +253,10 @@ router.get('/me', async (req, res) => {
     const user = users[0];
     delete user.mat_khau; // Không trả về mật khẩu
 
+    console.log('GET /me - Success for user:', user.email);
     res.json(user);
   } catch (error) {
+    console.error('GET /me - Error:', error);
     res.status(500).json({ message: 'Lỗi xác thực', error: error.message });
   }
 });

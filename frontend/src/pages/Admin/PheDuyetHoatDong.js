@@ -11,7 +11,10 @@ import {
   FaUsers, 
   FaUniversity,
   FaClock,
-  FaClipboardList
+  FaClipboardList,
+  FaTshirt,
+  FaBullseye,
+  FaInfoCircle
 } from 'react-icons/fa';
 import './PheDuyetHoatDong.css';
 
@@ -91,6 +94,22 @@ const PheDuyetHoatDong = () => {
     });
   };
 
+  const getMucDichText = (muc_dich) => {
+    const mucDichMap = {
+      've_nguon': 'Về nguồn',
+      'van_nghe': 'Văn nghệ',
+      've_sinh': 'Vệ sinh',
+      'ho_tro': 'Hỗ trợ',
+      'cuoc_thi': 'Cuộc thi',
+      'toa_dam': 'Tọa đàm',
+      'the_thao': 'Thể thao',
+      'tinh_nguyen': 'Tình nguyện',
+      'hoi_thao': 'Hội thảo',
+      'khac': 'Khác'
+    };
+    return mucDichMap[muc_dich] || 'Chưa xác định';
+  };
+
   if (loading) return <Loading />;
 
   return (
@@ -139,7 +158,7 @@ const PheDuyetHoatDong = () => {
                 </div>
 
                 <div className="activity-description">
-                  <p>{activity.mo_ta}</p>
+                  <p>{activity.mo_ta || 'Không có mô tả'}</p>
                 </div>
 
                 <div className="activity-details">
@@ -187,6 +206,62 @@ const PheDuyetHoatDong = () => {
                       <span className="detail-label">Loại hoạt động</span>
                       <span className="detail-value">
                         {activity.loai_hoat_dong || 'Chung'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {activity.muc_dich && (
+                    <div className="detail-item">
+                      <FaBullseye className="detail-icon" />
+                      <div>
+                        <span className="detail-label">Mục đích</span>
+                        <span className="detail-value">
+                          {getMucDichText(activity.muc_dich)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {activity.quy_dinh_trang_phuc && (
+                    <div className="detail-item full-width">
+                      <FaTshirt className="detail-icon" />
+                      <div>
+                        <span className="detail-label">Quy định trang phục</span>
+                        <span className="detail-value">
+                          {activity.quy_dinh_trang_phuc}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="detail-item">
+                    <FaInfoCircle className="detail-icon" />
+                    <div>
+                      <span className="detail-label">Trạng thái</span>
+                      <span className="detail-value">
+                        <Badge 
+                          variant={
+                            activity.trang_thai === 'dang_dien_ra' ? 'success' :
+                            activity.trang_thai === 'sap_dien_ra' ? 'warning' :
+                            activity.trang_thai === 'da_ket_thuc' ? 'secondary' : 'info'
+                          }
+                          size="small"
+                        >
+                          {activity.trang_thai === 'dang_dien_ra' ? 'Đang diễn ra' :
+                           activity.trang_thai === 'sap_dien_ra' ? 'Sắp diễn ra' :
+                           activity.trang_thai === 'da_ket_thuc' ? 'Đã kết thúc' : 
+                           activity.trang_thai}
+                        </Badge>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="detail-item">
+                    <FaUsers className="detail-icon" />
+                    <div>
+                      <span className="detail-label">Số người đã đăng ký</span>
+                      <span className="detail-value">
+                        {activity.so_luong_da_dang_ky || 0} người
                       </span>
                     </div>
                   </div>

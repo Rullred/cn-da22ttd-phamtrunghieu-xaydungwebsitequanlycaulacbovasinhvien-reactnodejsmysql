@@ -69,7 +69,13 @@ export const adminService = {
   getStudent: (id) => api.get(`/admin/students/${id}`),
   createStudent: (data) => api.post('/admin/students', data),
   updateStudent: (id, data) => api.put(`/admin/students/${id}`, data),
-  deleteStudent: (id) => api.delete(`/admin/students/${id}`)
+  deleteStudent: (id) => api.delete(`/admin/students/${id}`),
+  // Tạo hoạt động (Admin)
+  createActivity: (data) => api.post('/admin/create-activity', data),
+  getMyActivities: () => api.get('/admin/my-activities'),
+  getActivityRegistrations: (id) => api.get(`/admin/activity-registrations/${id}`),
+  confirmCompletion: (id) => api.post(`/admin/confirm-completion/${id}`),
+  confirmCompletionBulk: (ids) => api.post('/admin/confirm-completion-bulk', { registration_ids: ids })
 };
 
 // Sinh viên services
@@ -79,6 +85,7 @@ export const sinhvienService = {
   registerActivity: (id, ghi_chu) => api.post(`/sinhvien/register-activity/${id}`, { ghi_chu }),
   cancelRegistration: (id) => api.delete(`/sinhvien/cancel-registration/${id}`),
   getMyActivities: () => api.get('/sinhvien/my-activities'),
+  getClubs: () => api.get('/sinhvien/clubs'),
   joinClub: (clb_id) => api.post(`/sinhvien/join-club/${clb_id}`),
   updateProfile: (data) => api.put('/sinhvien/profile', data)
 };

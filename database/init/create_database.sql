@@ -72,7 +72,9 @@ CREATE TABLE IF NOT EXISTS thanh_vien_clb (
 -- Bảng hoạt động
 CREATE TABLE IF NOT EXISTS hoat_dong (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    cau_lac_bo_id INT NOT NULL,
+    cau_lac_bo_id INT NULL,
+    don_vi_phu_trach VARCHAR(255) NULL,
+    is_admin_activity BOOLEAN DEFAULT FALSE,
     ten_hoat_dong VARCHAR(255) NOT NULL,
     mo_ta TEXT,
     thoi_gian_bat_dau DATETIME NOT NULL,
@@ -81,11 +83,12 @@ CREATE TABLE IF NOT EXISTS hoat_dong (
     quy_dinh_trang_phuc TEXT,
     so_luong_toi_da INT DEFAULT 0,
     so_luong_da_dang_ky INT DEFAULT 0,
+    muc_dich ENUM('ve_nguon', 'van_nghe', 've_sinh', 'ho_tro', 'cuoc_thi', 'toa_dam', 'the_thao', 'tinh_nguyen', 'hoi_thao', 'khac') NULL,
     trang_thai ENUM('sap_dien_ra', 'dang_dien_ra', 'da_ket_thuc', 'huy') DEFAULT 'sap_dien_ra',
     trang_thai_duyet ENUM('cho_duyet', 'da_duyet', 'tu_choi') DEFAULT 'cho_duyet',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (cau_lac_bo_id) REFERENCES cau_lac_bo(id),
+    FOREIGN KEY (cau_lac_bo_id) REFERENCES cau_lac_bo(id) ON DELETE CASCADE,
     INDEX idx_trang_thai_duyet (trang_thai_duyet)
 );
 
