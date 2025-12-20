@@ -64,6 +64,7 @@ export const adminService = {
   getClubs: () => api.get('/admin/clubs'),
   deleteClub: (id) => api.delete(`/admin/club/${id}`),
   getStatistics: () => api.get('/admin/statistics'),
+  getDetailedStatistics: (period) => api.get('/admin/detailed-statistics', { params: { period } }),
   // Quản lý sinh viên
   getStudents: (search) => api.get('/admin/students', { params: { search } }),
   getStudent: (id) => api.get(`/admin/students/${id}`),
@@ -106,7 +107,9 @@ export const clbService = {
   getMembers: () => api.get('/caulacbo/members'),
   removeMember: (id) => api.delete(`/caulacbo/remove-member/${id}`),
   updateActivity: (id, data) => api.put(`/caulacbo/activity/${id}`, data),
-  deleteActivity: (id) => api.delete(`/caulacbo/activity/${id}`)
+  deleteActivity: (id) => api.delete(`/caulacbo/activity/${id}`),
+  getStatistics: () => api.get('/caulacbo/statistics'),
+  getTopStudents: () => api.get('/caulacbo/top-students')
 };
 
 // Hoạt động services (public)

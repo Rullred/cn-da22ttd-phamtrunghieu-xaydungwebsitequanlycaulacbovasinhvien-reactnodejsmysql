@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { clbService } from '../../services/api';
 import Loading from '../../components/Loading';
+import { FaUser } from 'react-icons/fa';
+
+// Hàm xử lý URL avatar
+const getAvatarUrl = (avatarPath) => {
+  if (!avatarPath) return null;
+  if (avatarPath.startsWith('http')) return avatarPath;
+  return `http://localhost:5000${avatarPath}`;
+};
 
 const QuanLyThanhVien = () => {
   const [members, setMembers] = useState([]);
@@ -92,11 +100,21 @@ const QuanLyThanhVien = () => {
             <div className="members-grid">
               {requests.map(request => (
                 <div key={request.id} className="member-card card">
-                  <img 
-                    src={`http://localhost:5000${request.anh_dai_dien}`} 
-                    alt={request.ho_ten}
-                    className="member-avatar"
-                  />
+                  <div className="member-avatar">
+                    {request.anh_dai_dien ? (
+                      <img 
+                        src={getAvatarUrl(request.anh_dai_dien)} 
+                        alt={request.ho_ten}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span className="avatar-fallback" style={{ display: request.anh_dai_dien ? 'none' : 'flex' }}>
+                      <FaUser size={40} />
+                    </span>
+                  </div>
                   <h3>{request.ho_ten}</h3>
                   <p><strong>MSSV:</strong> {request.ma_sinh_vien}</p>
                   <p><strong>Lớp:</strong> {request.lop}</p>
@@ -141,11 +159,21 @@ const QuanLyThanhVien = () => {
                   {members.map(member => (
                     <tr key={member.id}>
                       <td>
-                        <img 
-                          src={`http://localhost:5000${member.anh_dai_dien}`} 
-                          alt={member.ho_ten}
-                          style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
-                        />
+                        <div className="table-avatar">
+                          {member.anh_dai_dien ? (
+                            <img 
+                              src={getAvatarUrl(member.anh_dai_dien)} 
+                              alt={member.ho_ten}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <span className="avatar-fallback" style={{ display: member.anh_dai_dien ? 'none' : 'flex' }}>
+                            <FaUser />
+                          </span>
+                        </div>
                       </td>
                       <td>{member.ho_ten}</td>
                       <td>{member.ma_sinh_vien}</td>
@@ -212,9 +240,57 @@ const QuanLyThanhVien = () => {
           width: 100px;
           height: 100px;
           border-radius: 50%;
-          object-fit: cover;
           margin-bottom: 15px;
           border: 3px solid #1976d2;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .member-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .member-avatar .avatar-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+
+        .table-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .table-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .table-avatar .avatar-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 16px;
         }
 
         .member-card h3 {

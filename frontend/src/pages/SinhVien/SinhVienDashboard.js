@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Link } from 'react-router-dom';
 import { sinhvienService } from '../../services/api';
-import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaChartLine, FaCommentDots, FaComments, FaClipboardCheck, FaUserPlus } from 'react-icons/fa';
+import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaCommentDots, FaComments, FaClipboardCheck, FaUserPlus } from 'react-icons/fa';
 import DanhSachHoatDong from './DanhSachHoatDong';
 import HoatDongCuaToi from './HoatDongCuaToi';
 import TrangThaiDangKy from './TrangThaiDangKy';
 import DangKyCLB from './DangKyCLB';
 import Profile from './Profile';
 import TopSinhVien from './TopSinhVien';
-import ThongKe from './ThongKe';
 import DanhGia from './DanhGia';
 import ChatList from '../Chat/ChatList';
 import ChatRoom from '../Chat/ChatRoom';
@@ -93,9 +92,6 @@ const SinhVienDashboard = () => {
           <NavLink to="/sinhvien/top-sinh-vien" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FaTrophy /> Top Sinh Viên
           </NavLink>
-          <NavLink to="/sinhvien/thong-ke" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-            <FaChartLine /> Thống kê
-          </NavLink>
           <NavLink to="/sinhvien/danh-gia" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FaCommentDots /> Đánh giá
           </NavLink>
@@ -114,7 +110,6 @@ const SinhVienDashboard = () => {
           <Route path="chat/:roomId" element={<ChatRoom />} />
           <Route path="profile" element={<Profile />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
-          <Route path="thong-ke" element={<ThongKe />} />
           <Route path="danh-gia" element={<DanhGia />} />
         </Routes>
       </div>

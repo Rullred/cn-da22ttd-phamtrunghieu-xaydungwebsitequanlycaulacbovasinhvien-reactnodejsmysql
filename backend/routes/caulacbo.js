@@ -41,7 +41,8 @@ router.post('/create-activity', async (req, res) => {
       dia_diem, 
       quy_dinh_trang_phuc, 
       so_luong_toi_da,
-      muc_dich
+      muc_dich,
+      diem_ren_luyen
     } = req.body;
 
     // Validation
@@ -77,10 +78,10 @@ router.post('/create-activity', async (req, res) => {
     const [result] = await db.query(
       `INSERT INTO hoat_dong (
         cau_lac_bo_id, ten_hoat_dong, mo_ta, thoi_gian_bat_dau, thoi_gian_ket_thuc,
-        dia_diem, quy_dinh_trang_phuc, so_luong_toi_da, muc_dich, trang_thai, trang_thai_duyet
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sap_dien_ra', 'cho_duyet')`,
+        dia_diem, quy_dinh_trang_phuc, so_luong_toi_da, muc_dich, diem_ren_luyen, trang_thai, trang_thai_duyet
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sap_dien_ra', 'cho_duyet')`,
       [cau_lac_bo_id, ten_hoat_dong, mo_ta, thoi_gian_bat_dau, thoi_gian_ket_thuc, 
-       dia_diem, quy_dinh_trang_phuc, so_luong_toi_da || 0, muc_dich || null]
+       dia_diem, quy_dinh_trang_phuc, so_luong_toi_da || 0, muc_dich || null, diem_ren_luyen || 0]
     );
 
     // Thông báo cho ADMIN: Cần phê duyệt hoạt động mới
@@ -317,9 +318,14 @@ router.post('/confirm-completion/:id', async (req, res) => {
   try {
     const { id } = req.params; // DangKyHoatDong id
 
-    // Lấy thông tin đăng ký
+    // Lấy thông tin đăng ký và điểm rèn luyện
     const [regInfo] = await db.query(
-      'SELECT hoat_dong_id, trang_thai FROM dang_ky_hoat_dong WHERE id = ?',
+      `SELECT dk.hoat_dong_id, dk.trang_thai, dk.sinh_vien_id,
+              sv.id as sv_id, sv.nguoi_dung_id, hd.ten_hoat_dong, hd.diem_ren_luyen
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id = ?`,
       [id]
     );
 
@@ -327,7 +333,8 @@ router.post('/confirm-completion/:id', async (req, res) => {
       return res.status(404).json({ message: 'Không tìm thấy đăng ký' });
     }
 
-    const { trang_thai } = regInfo[0];
+    const { trang_thai, sv_id, nguoi_dung_id, ten_hoat_dong, diem_ren_luyen } = regInfo[0];
+    const diemCong = diem_ren_luyen || 0;
 
     // Chỉ cho phép xác nhận nếu đã được duyệt lần 1
     if (trang_thai !== 'dang_tham_gia') {
@@ -340,40 +347,34 @@ router.post('/confirm-completion/:id', async (req, res) => {
       [id]
     );
 
-    // Lấy thông tin để gửi thông báo
-    const [info] = await db.query(
-      `SELECT sv.nguoi_dung_id, hd.ten_hoat_dong
-       FROM dang_ky_hoat_dong dk
-       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
-       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
-       WHERE dk.id = ?`,
-      [id]
-    );
-
-    if (info.length > 0) {
-      const { nguoi_dung_id, ten_hoat_dong } = info[0];
-
-      // Gửi thông báo
+    // Cộng điểm rèn luyện cho sinh viên
+    if (diemCong > 0) {
       await db.query(
-        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
-         VALUES (?, 'duyet_hoat_dong', 'Hoàn thành hoạt động', ?)`,
-        [nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". Cảm ơn bạn đã tham gia!`]
+        `UPDATE sinh_vien SET tong_diem_ren_luyen = tong_diem_ren_luyen + ? WHERE id = ?`,
+        [diemCong, sv_id]
       );
-
-      // Real-time notification
-      const io = req.app.get('io');
-      const userSockets = req.app.get('userSockets');
-      const socketId = userSockets.get(nguoi_dung_id);
-      
-      if (socketId) {
-        io.to(socketId).emit('notification', {
-          type: 'duyet_hoat_dong',
-          message: `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}"`
-        });
-      }
     }
 
-    res.json({ message: 'Xác nhận hoàn thành thành công' });
+    // Gửi thông báo
+    await db.query(
+      `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+       VALUES (?, 'duyet_hoat_dong', 'Hoàn thành hoạt động', ?)`,
+      [nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". +${diemCong} điểm rèn luyện!`]
+    );
+
+    // Real-time notification
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    const socketId = userSockets.get(nguoi_dung_id);
+    
+    if (socketId) {
+      io.to(socketId).emit('notification', {
+        type: 'duyet_hoat_dong',
+        message: `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". +${diemCong} điểm!`
+      });
+    }
+
+    res.json({ message: 'Xác nhận hoàn thành thành công', diem_cong: diemCong });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi xác nhận', error: error.message });
   }
@@ -668,6 +669,169 @@ router.delete('/activity/:id', async (req, res) => {
   } catch (error) {
     console.error('Lỗi hủy hoạt động:', error);
     res.status(500).json({ message: 'Lỗi hủy hoạt động', error: error.message });
+  }
+});
+
+// ==================== THỐNG KÊ CLB ====================
+
+// Lấy thống kê chi tiết cho CLB
+router.get('/statistics', async (req, res) => {
+  try {
+    // Lấy CLB của Chủ nhiệm
+    const [clubs] = await db.query(
+      `SELECT id, ten_clb FROM cau_lac_bo WHERE chu_nhiem_id = ?`,
+      [req.user.id]
+    );
+
+    if (clubs.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy CLB' });
+    }
+
+    const clb_id = clubs[0].id;
+
+    // Tổng thành viên
+    const [memberCount] = await db.query(
+      `SELECT COUNT(*) as total FROM thanh_vien_clb WHERE cau_lac_bo_id = ? AND trang_thai = 'da_duyet'`,
+      [clb_id]
+    );
+
+    // Tổng hoạt động đã tổ chức
+    const [activityCount] = await db.query(
+      `SELECT COUNT(*) as total FROM hoat_dong WHERE cau_lac_bo_id = ? AND trang_thai_duyet = 'da_duyet'`,
+      [clb_id]
+    );
+
+    // Tổng lượt tham gia (hoàn thành)
+    const [participationCount] = await db.query(
+      `SELECT COUNT(*) as total FROM dang_ky_hoat_dong dk
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE hd.cau_lac_bo_id = ? AND dk.trang_thai = 'hoan_thanh'`,
+      [clb_id]
+    );
+
+    // Tổng đăng ký
+    const [totalRegistrations] = await db.query(
+      `SELECT COUNT(*) as total FROM dang_ky_hoat_dong dk
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE hd.cau_lac_bo_id = ? AND dk.trang_thai IN ('cho_duyet', 'dang_tham_gia', 'hoan_thanh')`,
+      [clb_id]
+    );
+
+    // Tỷ lệ hoàn thành
+    const tyLeHoanThanh = totalRegistrations[0].total > 0
+      ? Math.round((participationCount[0].total / totalRegistrations[0].total) * 100)
+      : 0;
+
+    // Thống kê hoạt động theo tháng (6 tháng gần nhất)
+    const [hoatDongTheoThang] = await db.query(`
+      SELECT 
+        DATE_FORMAT(thoi_gian_bat_dau, '%Y-%m') as thang,
+        COUNT(*) as so_hoat_dong
+      FROM hoat_dong
+      WHERE cau_lac_bo_id = ? 
+        AND thoi_gian_bat_dau >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        AND trang_thai_duyet = 'da_duyet'
+      GROUP BY DATE_FORMAT(thoi_gian_bat_dau, '%Y-%m')
+      ORDER BY thang ASC
+    `, [clb_id]);
+
+    // Thống kê thành viên theo khoa
+    const [thanhVienTheoKhoa] = await db.query(`
+      SELECT 
+        sv.khoa,
+        COUNT(*) as so_luong
+      FROM thanh_vien_clb tv
+      JOIN sinh_vien sv ON tv.sinh_vien_id = sv.id
+      WHERE tv.cau_lac_bo_id = ? AND tv.trang_thai = 'da_duyet' AND sv.khoa IS NOT NULL
+      GROUP BY sv.khoa
+      ORDER BY so_luong DESC
+      LIMIT 10
+    `, [clb_id]);
+
+    // Hoạt động gần đây
+    const [hoatDongGanDay] = await db.query(`
+      SELECT 
+        hd.id,
+        hd.ten_hoat_dong,
+        hd.thoi_gian_bat_dau,
+        hd.trang_thai,
+        hd.trang_thai_duyet,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai IN ('dang_tham_gia', 'hoan_thanh')) as so_tham_gia
+      FROM hoat_dong hd
+      WHERE hd.cau_lac_bo_id = ?
+      ORDER BY hd.thoi_gian_bat_dau DESC
+      LIMIT 5
+    `, [clb_id]);
+
+    // Top sinh viên tích cực trong CLB
+    const [topSinhVien] = await db.query(`
+      SELECT 
+        sv.ho_ten,
+        sv.ma_sinh_vien,
+        sv.lop,
+        COUNT(dk.id) as so_hoat_dong
+      FROM sinh_vien sv
+      JOIN dang_ky_hoat_dong dk ON sv.id = dk.sinh_vien_id
+      JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+      WHERE hd.cau_lac_bo_id = ? AND dk.trang_thai = 'hoan_thanh'
+      GROUP BY sv.id, sv.ho_ten, sv.ma_sinh_vien, sv.lop
+      ORDER BY so_hoat_dong DESC
+      LIMIT 5
+    `, [clb_id]);
+
+    res.json({
+      ten_clb: clubs[0].ten_clb,
+      tong_quan: {
+        tong_thanh_vien: memberCount[0].total,
+        tong_hoat_dong: activityCount[0].total,
+        luot_tham_gia: participationCount[0].total,
+        ty_le_hoan_thanh: tyLeHoanThanh
+      },
+      hoat_dong_theo_thang: hoatDongTheoThang,
+      thanh_vien_theo_khoa: thanhVienTheoKhoa,
+      hoat_dong_gan_day: hoatDongGanDay,
+      top_sinh_vien: topSinhVien
+    });
+  } catch (error) {
+    console.error('Lỗi lấy thống kê CLB:', error);
+    res.status(500).json({ message: 'Lỗi lấy thống kê', error: error.message });
+  }
+});
+
+// API lấy top sinh viên theo điểm rèn luyện (cho CLB)
+router.get('/top-students', async (req, res) => {
+  try {
+    // Lấy top 50 sinh viên có điểm rèn luyện cao nhất
+    const [students] = await db.query(
+      `SELECT sv.id, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.anh_dai_dien,
+              sv.tong_diem_ren_luyen,
+              (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE sinh_vien_id = sv.id AND trang_thai = 'hoan_thanh') as so_hoat_dong
+       FROM sinh_vien sv
+       WHERE sv.tong_diem_ren_luyen > 0
+       ORDER BY sv.tong_diem_ren_luyen DESC, so_hoat_dong DESC
+       LIMIT 50`
+    );
+    
+    // Thống kê tổng quan
+    const [statsResult] = await db.query(
+      `SELECT 
+        COUNT(DISTINCT sv.id) as total_students,
+        SUM(sv.tong_diem_ren_luyen) as total_points,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE trang_thai = 'hoan_thanh') as total_activities
+       FROM sinh_vien sv
+       WHERE sv.tong_diem_ren_luyen > 0`
+    );
+    
+    const stats = {
+      totalStudents: statsResult[0]?.total_students || 0,
+      totalPoints: statsResult[0]?.total_points || 0,
+      totalActivities: statsResult[0]?.total_activities || 0
+    };
+    
+    res.json({ students, stats });
+  } catch (error) {
+    console.error('Lỗi lấy top sinh viên:', error);
+    res.status(500).json({ message: 'Lỗi lấy top sinh viên', error: error.message });
   }
 });
 

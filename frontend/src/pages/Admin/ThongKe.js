@@ -1,7 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { FaChartLine, FaChartBar, FaChartPie, FaCalendar, FaUsers, FaClipboardList, FaStar, FaCommentDots, FaUser } from 'react-icons/fa';
-import { danhgiaService } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { 
+  FaChartLine, 
+  FaChartBar, 
+  FaChartPie, 
+  FaCalendar, 
+  FaUsers, 
+  FaClipboardList, 
+  FaStar, 
+  FaCommentDots, 
+  FaUser,
+  FaCheckCircle,
+  FaTrophy,
+  FaUniversity,
+  FaClock
+} from 'react-icons/fa';
+import { adminService, danhgiaService } from '../../services/api';
 import './ThongKe.css';
+
+// Mapping mục đích hoạt động
+const MUC_DICH_LABELS = {
+  've_nguon': { label: 'Về nguồn', color: '#667eea' },
+  'van_nghe': { label: 'Văn nghệ', color: '#f093fb' },
+  've_sinh': { label: 'Vệ sinh', color: '#43e97b' },
+  'ho_tro': { label: 'Hỗ trợ', color: '#4facfe' },
+  'cuoc_thi': { label: 'Cuộc thi', color: '#fa709a' },
+  'toa_dam': { label: 'Tọa đàm', color: '#a855f7' },
+  'the_thao': { label: 'Thể thao', color: '#f5576c' },
+  'tinh_nguyen': { label: 'Tình nguyện', color: '#2ed573' },
+  'hoi_thao': { label: 'Hội thảo', color: '#fbbf24' },
+  'khac': { label: 'Khác', color: '#718096' }
+};
 
 const ThongKe = () => {
   const [stats, setStats] = useState(null);
@@ -21,27 +49,31 @@ const ThongKe = () => {
   }, [selectedPeriod]);
 
   const fetchStatistics = async () => {
-    // TODO: Implement API call to fetch statistics
-    // Placeholder data for now
-    setLoading(false);
+    try {
+      console.log('Fetching statistics with period:', selectedPeriod);
+      const response = await adminService.getDetailedStatistics(selectedPeriod);
+      console.log('Statistics response:', response.data);
+      setStats(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Fetch statistics error:', error);
+      setLoading(false);
+    }
   };
 
   const fetchRatings = async () => {
     try {
       const response = await danhgiaService.getAllRatings();
       const { ratings: fetchedRatings, statistics } = response.data;
-      
-      setRatings(fetchedRatings);
-      setRatingStats(statistics);
-    } catch (error) {
-      console.error('Fetch ratings error:', error);
-      // Fallback to empty state if error
-      setRatings([]);
-      setRatingStats({
+      setRatings(fetchedRatings || []);
+      setRatingStats(statistics || {
         average: 0,
         total: 0,
         distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
       });
+    } catch (error) {
+      console.error('Fetch ratings error:', error);
+      setRatings([]);
     }
   };
 
@@ -65,6 +97,35 @@ const ThongKe = () => {
     return labels[type] || type;
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('vi-VN');
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      'sap_dien_ra': 'Sắp diễn ra',
+      'dang_dien_ra': 'Đang diễn ra',
+      'da_ket_thuc': 'Đã kết thúc'
+    };
+    return labels[status] || status;
+  };
+
+  const getStatusClass = (status) => {
+    const classes = {
+      'sap_dien_ra': 'status-upcoming',
+      'dang_dien_ra': 'status-ongoing',
+      'da_ket_thuc': 'status-completed'
+    };
+    return classes[status] || '';
+  };
+
+  // Tính max value cho biểu đồ
+  const getMaxValue = (data, key) => {
+    if (!data || data.length === 0) return 1;
+    return Math.max(...data.map(item => item[key] || 0), 1);
+  };
+
   if (loading) {
     return (
       <div className="loading-wrapper">
@@ -75,7 +136,7 @@ const ThongKe = () => {
 
   return (
     <div className="thong-ke-container">
-      <div className="page-header">
+      <div className="thongke-page-header">
         <div className="header-content">
           <div className="header-icon">
             <FaChartLine size={32} />
@@ -125,15 +186,16 @@ const ThongKe = () => {
 
       {activeTab === 'statistics' ? (
         <>
+          {/* Stats Overview */}
           <div className="stats-grid">
             <div className="stat-box">
               <div className="stat-icon-wrapper blue">
                 <FaUsers size={28} />
               </div>
               <div className="stat-details">
-                <h3>0</h3>
+                <h3>{stats?.tong_quan?.tong_sinh_vien || 0}</h3>
                 <p>Tổng sinh viên</p>
-                <span className="stat-change positive">+0% so với tháng trước</span>
+                <span className="stat-change positive">Đang hoạt động</span>
               </div>
             </div>
 
@@ -142,20 +204,20 @@ const ThongKe = () => {
                 <FaClipboardList size={28} />
               </div>
               <div className="stat-details">
-                <h3>0</h3>
+                <h3>{stats?.tong_quan?.hoat_dong_da_to_chuc || 0}</h3>
                 <p>Hoạt động đã tổ chức</p>
-                <span className="stat-change positive">+0% so với tháng trước</span>
+                <span className="stat-change positive">Đã hoàn thành</span>
               </div>
             </div>
 
             <div className="stat-box">
               <div className="stat-icon-wrapper orange">
-                <FaCalendar size={28} />
+                <FaCheckCircle size={28} />
               </div>
               <div className="stat-details">
-                <h3>0</h3>
+                <h3>{stats?.tong_quan?.luot_tham_gia || 0}</h3>
                 <p>Lượt tham gia</p>
-                <span className="stat-change positive">+0% so với tháng trước</span>
+                <span className="stat-change positive">Hoàn thành</span>
               </div>
             </div>
 
@@ -164,50 +226,172 @@ const ThongKe = () => {
                 <FaChartPie size={28} />
               </div>
               <div className="stat-details">
-                <h3>0%</h3>
-                <p>Tỷ lệ tham gia</p>
+                <h3>{stats?.tong_quan?.ty_le_tham_gia || 0}%</h3>
+                <p>Tỷ lệ hoàn thành</p>
                 <span className="stat-change">Trung bình</span>
               </div>
             </div>
           </div>
 
+          {/* Charts Section */}
           <div className="charts-section">
+            {/* Biểu đồ hoạt động theo tháng */}
             <div className="chart-card full-width">
               <div className="chart-header">
-                <h3><FaChartBar /> Biểu đồ hoạt động theo tháng</h3>
+                <h3><FaChartBar /> Hoạt động theo tháng (12 tháng gần nhất)</h3>
               </div>
-              <div className="chart-placeholder">
-                <FaChartBar size={48} className="placeholder-icon" />
-                <p>Biểu đồ đang được phát triển</p>
-              </div>
+              {stats?.hoat_dong_theo_thang?.length > 0 ? (
+                <div className="bar-chart">
+                  {stats.hoat_dong_theo_thang.map((item, index) => (
+                    <div key={index} className="bar-item">
+                      <div className="bar-wrapper">
+                        <div 
+                          className="bar" 
+                          style={{ 
+                            height: `${(item.so_hoat_dong / getMaxValue(stats.hoat_dong_theo_thang, 'so_hoat_dong')) * 100}%` 
+                          }}
+                        >
+                          <span className="bar-value">{item.so_hoat_dong}</span>
+                        </div>
+                      </div>
+                      <span className="bar-label">{item.thang?.slice(5)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="chart-placeholder">
+                  <FaChartBar size={48} className="placeholder-icon" />
+                  <p>Chưa có dữ liệu hoạt động</p>
+                </div>
+              )}
             </div>
 
+            {/* Thống kê theo CLB */}
             <div className="chart-card">
               <div className="chart-header">
-                <h3><FaChartPie /> Phân bố theo câu lạc bộ</h3>
+                <h3><FaUniversity /> Thống kê theo CLB</h3>
               </div>
-              <div className="chart-placeholder">
-                <FaChartPie size={48} className="placeholder-icon" />
-                <p>Biểu đồ đang được phát triển</p>
-              </div>
+              {stats?.thong_ke_theo_clb?.length > 0 ? (
+                <div className="clb-stats-list">
+                  {stats.thong_ke_theo_clb.map((clb, index) => (
+                    <div key={index} className="clb-stat-item">
+                      <div className="clb-info">
+                        <span className="clb-rank">#{index + 1}</span>
+                        <span className="clb-name">{clb.ten_clb}</span>
+                      </div>
+                      <div className="clb-numbers">
+                        <span className="clb-activities">{clb.so_hoat_dong} HĐ</span>
+                        <span className="clb-registrations">{clb.so_dang_ky} ĐK</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="chart-placeholder">
+                  <FaUniversity size={48} className="placeholder-icon" />
+                  <p>Chưa có dữ liệu CLB</p>
+                </div>
+              )}
             </div>
 
+            {/* Thống kê theo mục đích */}
             <div className="chart-card">
               <div className="chart-header">
-                <h3><FaChartLine /> Xu hướng tham gia</h3>
+                <h3><FaChartPie /> Phân loại theo mục đích</h3>
               </div>
-              <div className="chart-placeholder">
-                <FaChartLine size={48} className="placeholder-icon" />
-                <p>Biểu đồ đang được phát triển</p>
-              </div>
+              {stats?.thong_ke_theo_muc_dich?.length > 0 ? (
+                <div className="purpose-stats">
+                  {stats.thong_ke_theo_muc_dich.map((item, index) => (
+                    <div key={index} className="purpose-item">
+                      <div className="purpose-info">
+                        <span 
+                          className="purpose-dot" 
+                          style={{ background: MUC_DICH_LABELS[item.muc_dich]?.color || '#718096' }}
+                        ></span>
+                        <span className="purpose-name">
+                          {MUC_DICH_LABELS[item.muc_dich]?.label || item.muc_dich}
+                        </span>
+                      </div>
+                      <div className="purpose-bar-wrapper">
+                        <div 
+                          className="purpose-bar"
+                          style={{ 
+                            width: `${(item.so_luong / getMaxValue(stats.thong_ke_theo_muc_dich, 'so_luong')) * 100}%`,
+                            background: MUC_DICH_LABELS[item.muc_dich]?.color || '#718096'
+                          }}
+                        ></div>
+                      </div>
+                      <span className="purpose-count">{item.so_luong}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="chart-placeholder">
+                  <FaChartPie size={48} className="placeholder-icon" />
+                  <p>Chưa có dữ liệu</p>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="recent-activities">
-            <h3>Hoạt động gần đây</h3>
-            <div className="empty-state">
-              <FaCalendar size={48} className="empty-icon" />
-              <p>Chưa có dữ liệu hoạt động</p>
+          {/* Bottom Section */}
+          <div className="bottom-section">
+            {/* Hoạt động gần đây */}
+            <div className="recent-activities">
+              <h3><FaCalendar /> Hoạt động gần đây</h3>
+              {stats?.hoat_dong_gan_day?.length > 0 ? (
+                <div className="activities-list">
+                  {stats.hoat_dong_gan_day.map((hd, index) => (
+                    <div key={index} className="activity-item">
+                      <div className="activity-main">
+                        <h4>{hd.ten_hoat_dong}</h4>
+                        <div className="activity-meta">
+                          <span><FaUniversity /> {hd.don_vi}</span>
+                          <span><FaClock /> {formatDate(hd.thoi_gian_bat_dau)}</span>
+                          <span><FaUsers /> {hd.so_tham_gia} người</span>
+                        </div>
+                      </div>
+                      <span className={`activity-status ${getStatusClass(hd.trang_thai)}`}>
+                        {getStatusLabel(hd.trang_thai)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <FaCalendar size={48} className="empty-icon" />
+                  <p>Chưa có dữ liệu hoạt động</p>
+                </div>
+              )}
+            </div>
+
+            {/* Top sinh viên */}
+            <div className="top-students">
+              <h3><FaTrophy /> Top sinh viên tích cực</h3>
+              {stats?.top_sinh_vien?.length > 0 ? (
+                <div className="students-list">
+                  {stats.top_sinh_vien.map((sv, index) => (
+                    <div key={index} className="student-item">
+                      <div className={`student-rank rank-${index + 1}`}>
+                        {index < 3 ? <FaTrophy /> : index + 1}
+                      </div>
+                      <div className="student-info">
+                        <h4>{sv.ho_ten}</h4>
+                        <span>{sv.ma_sinh_vien} - {sv.lop}</span>
+                      </div>
+                      <div className="student-score">
+                        <span className="score-number">{sv.so_hoat_dong}</span>
+                        <span className="score-label">hoạt động</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  <FaTrophy size={48} className="empty-icon" />
+                  <p>Chưa có dữ liệu</p>
+                </div>
+              )}
             </div>
           </div>
         </>
@@ -217,16 +401,16 @@ const ThongKe = () => {
           <div className="rating-overview">
             <div className="rating-summary">
               <div className="average-rating">
-                <h2>{ratingStats.average}</h2>
+                <h2>{ratingStats.average?.toFixed(1) || '0.0'}</h2>
                 <div className="stars">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <FaStar 
                       key={star} 
-                      className={star <= Math.round(ratingStats.average) ? 'active' : ''} 
+                      className={star <= Math.round(ratingStats.average || 0) ? 'active' : ''} 
                     />
                   ))}
                 </div>
-                <p>{ratingStats.total} đánh giá</p>
+                <p>{ratingStats.total || 0} đánh giá</p>
               </div>
               
               <div className="rating-distribution">
@@ -237,11 +421,11 @@ const ThongKe = () => {
                       <div 
                         className="progress-fill" 
                         style={{ 
-                          width: `${ratingStats.total > 0 ? (ratingStats.distribution[star] / ratingStats.total) * 100 : 0}%` 
+                          width: `${ratingStats.total > 0 ? ((ratingStats.distribution?.[star] || 0) / ratingStats.total) * 100 : 0}%` 
                         }}
                       ></div>
                     </div>
-                    <span className="count">{ratingStats.distribution[star]}</span>
+                    <span className="count">{ratingStats.distribution?.[star] || 0}</span>
                   </div>
                 ))}
               </div>

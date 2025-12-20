@@ -427,4 +427,41 @@ router.put('/profile', async (req, res) => {
   }
 });
 
+// API lấy top sinh viên theo điểm rèn luyện (cho tất cả người dùng)
+router.get('/top-students', async (req, res) => {
+  try {
+    // Lấy top 50 sinh viên có điểm rèn luyện cao nhất
+    const [students] = await db.query(
+      `SELECT sv.id, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.anh_dai_dien,
+              sv.tong_diem_ren_luyen,
+              (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE sinh_vien_id = sv.id AND trang_thai = 'hoan_thanh') as so_hoat_dong
+       FROM sinh_vien sv
+       WHERE sv.tong_diem_ren_luyen > 0
+       ORDER BY sv.tong_diem_ren_luyen DESC, so_hoat_dong DESC
+       LIMIT 50`
+    );
+    
+    // Thống kê tổng quan
+    const [statsResult] = await db.query(
+      `SELECT 
+        COUNT(DISTINCT sv.id) as total_students,
+        SUM(sv.tong_diem_ren_luyen) as total_points,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE trang_thai = 'hoan_thanh') as total_activities
+       FROM sinh_vien sv
+       WHERE sv.tong_diem_ren_luyen > 0`
+    );
+    
+    const stats = {
+      totalStudents: statsResult[0]?.total_students || 0,
+      totalPoints: statsResult[0]?.total_points || 0,
+      totalActivities: statsResult[0]?.total_activities || 0
+    };
+    
+    res.json({ students, stats });
+  } catch (error) {
+    console.error('Lỗi lấy top sinh viên:', error);
+    res.status(500).json({ message: 'Lỗi lấy top sinh viên', error: error.message });
+  }
+});
+
 module.exports = router;

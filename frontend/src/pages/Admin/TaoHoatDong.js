@@ -11,22 +11,23 @@ import {
   FaBullhorn, 
   FaFlag,
   FaUniversity,
-  FaCheckCircle
+  FaCheckCircle,
+  FaStar
 } from 'react-icons/fa';
 import './TaoHoatDong.css';
 
-// Danh sách mục đích hoạt động
+// Danh sách mục đích hoạt động với điểm gợi ý
 const MUC_DICH_HOAT_DONG = [
-  { value: 've_nguon', label: 'Về nguồn', icon: '🏛️' },
-  { value: 'van_nghe', label: 'Chương trình Văn nghệ', icon: '🎭' },
-  { value: 've_sinh', label: 'Vệ sinh', icon: '🧹' },
-  { value: 'ho_tro', label: 'Hỗ trợ', icon: '🤝' },
-  { value: 'cuoc_thi', label: 'Cuộc thi', icon: '🏆' },
-  { value: 'toa_dam', label: 'Tọa đàm', icon: '💬' },
-  { value: 'the_thao', label: 'Thể thao', icon: '⚽' },
-  { value: 'tinh_nguyen', label: 'Tình nguyện', icon: '💚' },
-  { value: 'hoi_thao', label: 'Hội thảo', icon: '📚' },
-  { value: 'khac', label: 'Khác', icon: '📌' }
+  { value: 've_nguon', label: 'Về nguồn', icon: '🏛️', diemGoiY: 2 },
+  { value: 'van_nghe', label: 'Chương trình Văn nghệ', icon: '🎭', diemGoiY: 2 },
+  { value: 've_sinh', label: 'Vệ sinh', icon: '🧹', diemGoiY: 2 },
+  { value: 'ho_tro', label: 'Hỗ trợ', icon: '🤝', diemGoiY: 2 },
+  { value: 'cuoc_thi', label: 'Cuộc thi', icon: '🏆', diemGoiY: 3 },
+  { value: 'toa_dam', label: 'Tọa đàm', icon: '💬', diemGoiY: 4 },
+  { value: 'the_thao', label: 'Thể thao', icon: '⚽', diemGoiY: 3 },
+  { value: 'tinh_nguyen', label: 'Tình nguyện', icon: '💚', diemGoiY: 3 },
+  { value: 'hoi_thao', label: 'Hội thảo', icon: '📚', diemGoiY: 4 },
+  { value: 'khac', label: 'Khác', icon: '📌', diemGoiY: 1 }
 ];
 
 const TaoHoatDong = () => {
@@ -41,7 +42,8 @@ const TaoHoatDong = () => {
     quy_dinh_trang_phuc: '',
     so_luong_toi_da: 0,
     muc_dich: '',
-    don_vi_phu_trach: 'Đoàn trường Kỹ thuật và Công nghệ TVU'
+    don_vi_phu_trach: 'Đoàn trường Kỹ thuật và Công nghệ TVU',
+    diem_ren_luyen: 0
   });
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +55,17 @@ const TaoHoatDong = () => {
         alert('Giờ kết thúc phải sau giờ bắt đầu!');
         return;
       }
+    }
+
+    // Tự động gợi ý điểm rèn luyện khi chọn mục đích
+    if (name === 'muc_dich') {
+      const mucDich = MUC_DICH_HOAT_DONG.find(m => m.value === value);
+      setFormData({
+        ...formData,
+        [name]: value,
+        diem_ren_luyen: mucDich?.diemGoiY || 0
+      });
+      return;
     }
     
     setFormData({
@@ -286,6 +299,28 @@ const TaoHoatDong = () => {
                 min="0"
                 placeholder="0"
               />
+            </div>
+          </div>
+
+          {/* Điểm rèn luyện */}
+          <div className="form-item">
+            <div className="item-icon score">
+              <FaStar />
+            </div>
+            <div className="item-content">
+              <label className="item-label">Điểm rèn luyện *</label>
+              <input
+                type="number"
+                name="diem_ren_luyen"
+                className="form-input"
+                value={formData.diem_ren_luyen}
+                onChange={handleChange}
+                min="0"
+                max="10"
+                placeholder="VD: 2"
+                required
+              />
+              <small className="input-hint">Điểm sẽ được cộng khi sinh viên hoàn thành hoạt động (0-10 điểm)</small>
             </div>
           </div>
 
