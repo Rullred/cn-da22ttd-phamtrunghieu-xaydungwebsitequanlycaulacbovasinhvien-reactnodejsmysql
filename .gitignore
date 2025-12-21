@@ -36,3 +36,4 @@ Thumbs.db
 # Uploads
 /public/images/*
 !/public/images/default-avatar.jpg
+!/public/images/*.png
