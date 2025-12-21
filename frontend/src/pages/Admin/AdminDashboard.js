@@ -17,7 +17,8 @@ import {
   FaListAlt,
   FaCheckCircle,
   FaTimesCircle,
-  FaInfoCircle
+  FaInfoCircle,
+  FaFileAlt
 } from 'react-icons/fa';
 import PheDuyetHoatDong from './PheDuyetHoatDong';
 import QuanLyCauLacBo from './QuanLyCauLacBo';
@@ -26,6 +27,7 @@ import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
+import DanhSachHoatDong from './DanhSachHoatDong';
 import './AdminDashboard.css';
 
 const AdminHome = () => {
@@ -375,6 +377,13 @@ const AdminDashboard = () => {
             <FaChartLine />
             <span>Thống kê</span>
           </NavLink>
+          <NavLink 
+            to="/admin/danh-sach-hoat-dong" 
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <FaFileAlt />
+            <span>Danh sách hoạt động</span>
+          </NavLink>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -399,6 +408,7 @@ const AdminDashboard = () => {
           <Route path="sinh-vien" element={<QuanLySinhVien />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
+          <Route path="danh-sach-hoat-dong" element={<DanhSachHoatDong />} />
         </Routes>
       </div>
     </div>

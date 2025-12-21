@@ -20,6 +20,7 @@ const hoatdongRoutes = require('./routes/hoatdong');
 const thongbaoRoutes = require('./routes/thongbao');
 const danhgiaRoutes = require('./routes/danhgia');
 const chatRoutes = require('./routes/chat');
+const danhsachRoutes = require('./routes/danhsach');
 
 const app = express();
 const server = http.createServer(app);
@@ -109,6 +110,10 @@ app.use('/api/hoatdong', hoatdongRoutes);
 app.use('/api/thongbao', thongbaoRoutes);
 app.use('/api/danhgia', danhgiaRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/danhsach', danhsachRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Route mặc định
 app.get('/', (req, res) => {

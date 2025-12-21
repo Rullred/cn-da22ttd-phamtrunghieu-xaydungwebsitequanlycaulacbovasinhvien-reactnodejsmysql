@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, Link } from 'react-router-dom';
 import { sinhvienService } from '../../services/api';
-import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaCommentDots, FaComments, FaClipboardCheck, FaUserPlus } from 'react-icons/fa';
+import { FaCalendar, FaClipboardList, FaUser, FaTrophy, FaCommentDots, FaComments, FaClipboardCheck, FaUserPlus, FaFileAlt } from 'react-icons/fa';
 import DanhSachHoatDong from './DanhSachHoatDong';
 import HoatDongCuaToi from './HoatDongCuaToi';
 import TrangThaiDangKy from './TrangThaiDangKy';
@@ -9,6 +9,7 @@ import DangKyCLB from './DangKyCLB';
 import Profile from './Profile';
 import TopSinhVien from './TopSinhVien';
 import DanhGia from './DanhGia';
+import DanhSachHoatDongFile from './DanhSachHoatDongFile';
 import ChatList from '../Chat/ChatList';
 import ChatRoom from '../Chat/ChatRoom';
 import ChiTietHoatDong from './ChiTietHoatDong';
@@ -95,6 +96,9 @@ const SinhVienDashboard = () => {
           <NavLink to="/sinhvien/danh-gia" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             <FaCommentDots /> Đánh giá
           </NavLink>
+          <NavLink to="/sinhvien/danh-sach-file" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            <FaFileAlt /> Danh sách hoạt động
+          </NavLink>
         </nav>
       </div>
 
@@ -111,6 +115,7 @@ const SinhVienDashboard = () => {
           <Route path="profile" element={<Profile />} />
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="danh-gia" element={<DanhGia />} />
+          <Route path="danh-sach-file" element={<DanhSachHoatDongFile />} />
         </Routes>
       </div>
     </div>

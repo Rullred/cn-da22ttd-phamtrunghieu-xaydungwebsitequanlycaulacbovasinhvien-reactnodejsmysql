@@ -14,7 +14,8 @@ import {
   FaTrophy,
   FaChartLine,
   FaCommentDots,
-  FaComments
+  FaComments,
+  FaFileAlt
 } from 'react-icons/fa';
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
@@ -24,6 +25,7 @@ import DuyetThamGiaHoatDong from './DuyetThamGiaHoatDong';
 import TopSinhVien from './TopSinhVien';
 import ThongKe from './ThongKe';
 import DanhGia from './DanhGia';
+import DanhSachHoatDong from './DanhSachHoatDong';
 import ChatList from '../Chat/ChatList';
 import ChatRoom from '../Chat/ChatRoom';
 import './CLBDashboard.css';
@@ -299,6 +301,13 @@ const CLBDashboard = () => {
             <span>Đánh giá</span>
           </NavLink>
           <NavLink 
+            to="/caulacbo/danh-sach-hoat-dong" 
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <FaFileAlt />
+            <span>Danh sách hoạt động</span>
+          </NavLink>
+          <NavLink 
             to="/caulacbo/chat" 
             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
           >
@@ -330,6 +339,7 @@ const CLBDashboard = () => {
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
           <Route path="danh-gia" element={<DanhGia />} />
+          <Route path="danh-sach-hoat-dong" element={<DanhSachHoatDong />} />
           <Route path="chat" element={<ChatList />} />
           <Route path="chat/:roomId" element={<ChatRoom />} />
         </Routes>
