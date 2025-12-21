@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { clbService } from '../../services/api';
 import Loading from '../../components/Loading';
-import { FaUser } from 'react-icons/fa';
+import { FaUser, FaSearch, FaUserPlus, FaTimes } from 'react-icons/fa';
+import api from '../../services/api';
 
 // Hàm xử lý URL avatar
 const getAvatarUrl = (avatarPath) => {
@@ -15,6 +16,12 @@ const QuanLyThanhVien = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('members');
+  
+  // State cho tìm kiếm sinh viên
+  const [searchMSSV, setSearchMSSV] = useState('');
+  const [searchResult, setSearchResult] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -69,6 +76,51 @@ const QuanLyThanhVien = () => {
     }
   };
 
+  // Tìm kiếm sinh viên bằng MSSV
+  const handleSearch = async () => {
+    if (!searchMSSV.trim()) {
+      setSearchError('Vui lòng nhập MSSV');
+      return;
+    }
+
+    setSearching(true);
+    setSearchError('');
+    setSearchResult(null);
+
+    try {
+      const response = await api.get(`/caulacbo/search-student/${searchMSSV.trim()}`);
+      setSearchResult(response.data);
+    } catch (error) {
+      if (error.response?.status === 404) {
+        setSearchError('Không tìm thấy sinh viên với MSSV này');
+      } else {
+        setSearchError(error.response?.data?.message || 'Lỗi tìm kiếm');
+      }
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Thêm sinh viên vào CLB
+  const handleAddMember = async (sinhVienId) => {
+    try {
+      await api.post(`/caulacbo/add-member/${sinhVienId}`);
+      alert('Thêm thành viên thành công!');
+      setSearchResult(null);
+      setSearchMSSV('');
+      fetchData();
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || 'Không thể thêm thành viên'));
+    }
+  };
+
+  // Xóa kết quả tìm kiếm
+  const clearSearch = () => {
+    setSearchMSSV('');
+    setSearchResult(null);
+    setSearchError('');
+  };
+
   if (loading) return <Loading />;
 
   return (
@@ -88,7 +140,92 @@ const QuanLyThanhVien = () => {
         >
           Yêu cầu chờ duyệt ({requests.length})
         </button>
+        <button 
+          className={`tab ${activeTab === 'search' ? 'active' : ''}`}
+          onClick={() => setActiveTab('search')}
+        >
+          <FaSearch style={{ marginRight: '5px' }} />
+          Tìm & Thêm SV
+        </button>
       </div>
+
+      {activeTab === 'search' && (
+        <div className="search-section">
+          <div className="search-card">
+            <h3><FaSearch /> Tìm kiếm sinh viên bằng MSSV</h3>
+            <p className="search-desc">Nhập MSSV để tìm và thêm sinh viên vào câu lạc bộ</p>
+            
+            <div className="search-box">
+              <input
+                type="text"
+                placeholder="Nhập MSSV (VD: 110122076)"
+                value={searchMSSV}
+                onChange={(e) => setSearchMSSV(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              {searchMSSV && (
+                <button className="clear-btn" onClick={clearSearch}>
+                  <FaTimes />
+                </button>
+              )}
+              <button className="search-btn" onClick={handleSearch} disabled={searching}>
+                {searching ? 'Đang tìm...' : <><FaSearch /> Tìm kiếm</>}
+              </button>
+            </div>
+
+            {searchError && (
+              <div className="search-error">
+                {searchError}
+              </div>
+            )}
+
+            {searchResult && (
+              <div className="search-result">
+                <div className="result-card">
+                  <div className="result-avatar">
+                    {searchResult.anh_dai_dien ? (
+                      <img 
+                        src={getAvatarUrl(searchResult.anh_dai_dien)} 
+                        alt={searchResult.ho_ten}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span className="avatar-fallback" style={{ display: searchResult.anh_dai_dien ? 'none' : 'flex' }}>
+                      <FaUser size={30} />
+                    </span>
+                  </div>
+                  <div className="result-info">
+                    <h4>{searchResult.ho_ten}</h4>
+                    <p><strong>MSSV:</strong> {searchResult.ma_sinh_vien}</p>
+                    <p><strong>Lớp:</strong> {searchResult.lop || 'Chưa cập nhật'}</p>
+                    <p><strong>Khoa:</strong> {searchResult.khoa || 'Chưa cập nhật'}</p>
+                    {searchResult.is_member && (
+                      <span className="already-member">Đã là thành viên CLB</span>
+                    )}
+                  </div>
+                  <div className="result-action">
+                    {searchResult.is_member ? (
+                      <button className="btn btn-secondary" disabled>
+                        Đã là thành viên
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn btn-success"
+                        onClick={() => handleAddMember(searchResult.id)}
+                      >
+                        <FaUserPlus /> Thêm vào CLB
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'requests' && (
         <div className="requests-section">
@@ -321,6 +458,225 @@ const QuanLyThanhVien = () => {
         .btn-sm {
           padding: 6px 12px;
           font-size: 12px;
+        }
+
+        /* Search Section */
+        .search-section {
+          margin-top: 20px;
+        }
+
+        .search-card {
+          background: white;
+          border-radius: 12px;
+          padding: 30px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+        }
+
+        .search-card h3 {
+          color: #2c3e50;
+          margin: 0 0 10px 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .search-desc {
+          color: #7f8c8d;
+          margin: 0 0 20px 0;
+        }
+
+        .search-box {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          max-width: 600px;
+        }
+
+        .search-box input {
+          flex: 1;
+          padding: 12px 16px;
+          border: 2px solid #e0e0e0;
+          border-radius: 8px;
+          font-size: 15px;
+          transition: all 0.3s;
+        }
+
+        .search-box input:focus {
+          outline: none;
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+          padding: 12px 24px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.3s;
+        }
+
+        .search-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
+        .clear-btn {
+          padding: 8px;
+          background: #e0e0e0;
+          border: none;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s;
+        }
+
+        .clear-btn:hover {
+          background: #ff6b6b;
+          color: white;
+        }
+
+        .search-error {
+          margin-top: 15px;
+          padding: 12px 16px;
+          background: #fff5f5;
+          border: 1px solid #feb2b2;
+          border-radius: 8px;
+          color: #c53030;
+          font-size: 14px;
+        }
+
+        .search-result {
+          margin-top: 20px;
+        }
+
+        .result-card {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+          padding: 20px;
+          background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+          border-radius: 12px;
+          border: 2px solid #e2e8f0;
+        }
+
+        .result-avatar {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          flex-shrink: 0;
+        }
+
+        .result-avatar img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+
+        .result-avatar .avatar-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+        }
+
+        .result-info {
+          flex: 1;
+        }
+
+        .result-info h4 {
+          margin: 0 0 10px 0;
+          color: #2c3e50;
+          font-size: 18px;
+        }
+
+        .result-info p {
+          margin: 5px 0;
+          color: #5a6c7d;
+          font-size: 14px;
+        }
+
+        .already-member {
+          display: inline-block;
+          margin-top: 8px;
+          padding: 4px 12px;
+          background: #48bb78;
+          color: white;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+
+        .result-action {
+          flex-shrink: 0;
+        }
+
+        .result-action .btn {
+          padding: 12px 20px;
+          border: none;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 500;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.3s;
+        }
+
+        .result-action .btn-success {
+          background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+          color: white;
+        }
+
+        .result-action .btn-success:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .result-action .btn-secondary {
+          background: #a0aec0;
+          color: white;
+        }
+
+        @media (max-width: 768px) {
+          .search-box {
+            flex-direction: column;
+          }
+
+          .search-box input,
+          .search-btn {
+            width: 100%;
+          }
+
+          .result-card {
+            flex-direction: column;
+            text-align: center;
+          }
+
+          .result-info {
+            text-align: center;
+          }
         }
       `}</style>
     </div>

@@ -798,6 +798,142 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
+// Tìm kiếm sinh viên bằng MSSV
+router.get('/search-student/:mssv', async (req, res) => {
+  try {
+    const { mssv } = req.params;
+
+    // Lấy CLB của Chủ nhiệm
+    const [clubs] = await db.query(
+      `SELECT id FROM cau_lac_bo WHERE chu_nhiem_id = ?`,
+      [req.user.id]
+    );
+
+    if (clubs.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy CLB của bạn' });
+    }
+
+    const clb_id = clubs[0].id;
+
+    // Tìm sinh viên theo MSSV
+    const [students] = await db.query(
+      `SELECT sv.id, sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.anh_dai_dien
+       FROM sinh_vien sv
+       WHERE sv.ma_sinh_vien = ?`,
+      [mssv]
+    );
+
+    if (students.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sinh viên với MSSV này' });
+    }
+
+    const student = students[0];
+
+    // Kiểm tra xem sinh viên đã là thành viên CLB chưa
+    const [membership] = await db.query(
+      `SELECT id, trang_thai FROM thanh_vien_clb 
+       WHERE sinh_vien_id = ? AND cau_lac_bo_id = ? AND trang_thai IN ('da_duyet', 'cho_duyet')`,
+      [student.id, clb_id]
+    );
+
+    student.is_member = membership.length > 0;
+
+    res.json(student);
+  } catch (error) {
+    console.error('Lỗi tìm kiếm sinh viên:', error);
+    res.status(500).json({ message: 'Lỗi tìm kiếm sinh viên', error: error.message });
+  }
+});
+
+// Thêm sinh viên vào CLB (bởi Chủ nhiệm)
+router.post('/add-member/:sinhVienId', async (req, res) => {
+  try {
+    const { sinhVienId } = req.params;
+
+    // Lấy CLB của Chủ nhiệm
+    const [clubs] = await db.query(
+      `SELECT id, ten_clb FROM cau_lac_bo WHERE chu_nhiem_id = ?`,
+      [req.user.id]
+    );
+
+    if (clubs.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy CLB của bạn' });
+    }
+
+    const clb_id = clubs[0].id;
+    const ten_clb = clubs[0].ten_clb;
+
+    // Kiểm tra sinh viên tồn tại
+    const [students] = await db.query(
+      `SELECT sv.id, sv.ho_ten, sv.nguoi_dung_id FROM sinh_vien sv WHERE sv.id = ?`,
+      [sinhVienId]
+    );
+
+    if (students.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy sinh viên' });
+    }
+
+    const student = students[0];
+
+    // Kiểm tra xem sinh viên đã là thành viên CLB chưa
+    const [existingMembership] = await db.query(
+      `SELECT id, trang_thai FROM thanh_vien_clb 
+       WHERE sinh_vien_id = ? AND cau_lac_bo_id = ?`,
+      [sinhVienId, clb_id]
+    );
+
+    if (existingMembership.length > 0) {
+      const status = existingMembership[0].trang_thai;
+      if (status === 'da_duyet') {
+        return res.status(400).json({ message: 'Sinh viên đã là thành viên CLB' });
+      } else if (status === 'cho_duyet') {
+        // Nếu đang chờ duyệt, tự động duyệt luôn
+        await db.query(
+          `UPDATE thanh_vien_clb SET trang_thai = 'da_duyet', ngay_duyet = NOW() WHERE id = ?`,
+          [existingMembership[0].id]
+        );
+      } else {
+        // Nếu đã từ chối hoặc trạng thái khác, cập nhật lại
+        await db.query(
+          `UPDATE thanh_vien_clb SET trang_thai = 'da_duyet', ngay_duyet = NOW() WHERE id = ?`,
+          [existingMembership[0].id]
+        );
+      }
+    } else {
+      // Thêm mới thành viên với trạng thái đã duyệt
+      await db.query(
+        `INSERT INTO thanh_vien_clb (sinh_vien_id, cau_lac_bo_id, vai_tro, trang_thai, ngay_tham_gia, ngay_duyet)
+         VALUES (?, ?, 'thanh_vien', 'da_duyet', NOW(), NOW())`,
+        [sinhVienId, clb_id]
+      );
+    }
+
+    // Gửi thông báo cho sinh viên
+    await db.query(
+      `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+       VALUES (?, 'duyet_thanh_vien_clb', 'Được thêm vào CLB', ?)`,
+      [student.nguoi_dung_id, `Chúc mừng! Bạn đã được thêm vào ${ten_clb} bởi Chủ nhiệm CLB.`]
+    );
+
+    // Real-time notification
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    const socketId = userSockets?.get(student.nguoi_dung_id);
+    
+    if (socketId) {
+      io.to(socketId).emit('notification', {
+        type: 'duyet_thanh_vien_clb',
+        message: `Bạn đã được thêm vào ${ten_clb}`
+      });
+    }
+
+    res.json({ message: 'Thêm thành viên thành công' });
+  } catch (error) {
+    console.error('Lỗi thêm thành viên:', error);
+    res.status(500).json({ message: 'Lỗi thêm thành viên', error: error.message });
+  }
+});
+
 // API lấy top sinh viên theo điểm rèn luyện (cho CLB)
 router.get('/top-students', async (req, res) => {
   try {
