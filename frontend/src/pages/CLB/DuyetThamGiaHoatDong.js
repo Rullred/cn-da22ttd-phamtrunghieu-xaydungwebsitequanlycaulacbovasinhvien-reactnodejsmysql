@@ -14,6 +14,13 @@ const DuyetThamGiaHoatDong = () => {
   const [activeTab, setActiveTab] = useState('pending'); // pending, participating, completed
   const [processing, setProcessing] = useState(null);
   const [activity, setActivity] = useState(null);
+  
+  // States cho bulk select
+  const [selectedPending, setSelectedPending] = useState([]);
+  const [selectedParticipating, setSelectedParticipating] = useState([]);
+  const [selectAllPending, setSelectAllPending] = useState(false);
+  const [selectAllParticipating, setSelectAllParticipating] = useState(false);
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -22,9 +29,10 @@ const DuyetThamGiaHoatDong = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [regResponse, completedResponse] = await Promise.all([
+      const [regResponse, completedResponse, activitiesResponse] = await Promise.all([
         clbService.getActivityRegistrations(hoat_dong_id),
-        clbService.getCompletedParticipants(hoat_dong_id)
+        clbService.getCompletedParticipants(hoat_dong_id),
+        clbService.getActivities()
       ]);
       
       console.log('Registrations:', regResponse.data);
@@ -33,18 +41,15 @@ const DuyetThamGiaHoatDong = () => {
       setRegistrations(regResponse.data || []);
       setCompletedList(completedResponse.data || []);
       
-      // Lấy thông tin hoạt động từ registration đầu tiên
-      if (regResponse.data && regResponse.data.length > 0) {
+      // Lấy thông tin hoạt động đầy đủ từ danh sách hoạt động
+      const currentActivity = activitiesResponse.data.find(a => a.id === parseInt(hoat_dong_id));
+      if (currentActivity) {
+        setActivity(currentActivity);
+      } else if (regResponse.data && regResponse.data.length > 0) {
+        // Fallback: lấy từ registration đầu tiên
         setActivity({
           ten_hoat_dong: regResponse.data[0].ten_hoat_dong
         });
-      } else {
-        // Nếu không có registration, fetch thông tin hoạt động riêng
-        const activities = await clbService.getActivities();
-        const currentActivity = activities.data.find(a => a.id === parseInt(hoat_dong_id));
-        if (currentActivity) {
-          setActivity({ ten_hoat_dong: currentActivity.ten_hoat_dong });
-        }
       }
     } catch (error) {
       console.error('Lỗi lấy dữ liệu:', error);
@@ -52,6 +57,98 @@ const DuyetThamGiaHoatDong = () => {
       alert('Không thể tải dữ liệu: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handlers cho bulk select - Pending
+  const handleSelectAllPending = (e) => {
+    const checked = e.target.checked;
+    setSelectAllPending(checked);
+    if (checked) {
+      setSelectedPending(pendingList.map(r => r.id));
+    } else {
+      setSelectedPending([]);
+    }
+  };
+
+  const handleSelectPending = (id) => {
+    setSelectedPending(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Handlers cho bulk select - Participating
+  const handleSelectAllParticipating = (e) => {
+    const checked = e.target.checked;
+    setSelectAllParticipating(checked);
+    if (checked) {
+      setSelectedParticipating(participatingList.map(r => r.id));
+    } else {
+      setSelectedParticipating([]);
+    }
+  };
+
+  const handleSelectParticipating = (id) => {
+    setSelectedParticipating(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Bulk approve
+  const handleBulkApprove = async () => {
+    if (selectedPending.length === 0) {
+      alert('Vui lòng chọn ít nhất một đăng ký');
+      return;
+    }
+
+    if (!window.confirm(`Phê duyệt ${selectedPending.length} đăng ký đã chọn?`)) {
+      return;
+    }
+
+    try {
+      setProcessing('bulk');
+      await clbService.approveRegistrationsBulk(selectedPending);
+      alert(`Đã phê duyệt thành công ${selectedPending.length} đăng ký!`);
+      setSelectedPending([]);
+      setSelectAllPending(false);
+      fetchData();
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || 'Không thể phê duyệt hàng loạt'));
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  // Bulk confirm completion
+  const handleBulkConfirm = async () => {
+    if (selectedParticipating.length === 0) {
+      alert('Vui lòng chọn ít nhất một sinh viên');
+      return;
+    }
+
+    if (!window.confirm(`Xác nhận ${selectedParticipating.length} sinh viên đã hoàn thành?`)) {
+      return;
+    }
+
+    try {
+      setProcessing('bulk');
+      await clbService.confirmCompletionBulk(selectedParticipating);
+      alert(`Đã xác nhận hoàn thành cho ${selectedParticipating.length} sinh viên!`);
+      setSelectedParticipating([]);
+      setSelectAllParticipating(false);
+      fetchData();
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || 'Không thể xác nhận hàng loạt'));
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -150,6 +247,31 @@ const DuyetThamGiaHoatDong = () => {
     document.body.removeChild(link);
   };
 
+  const handleSendEvidenceRequest = async () => {
+    if (completedList.length === 0) {
+      alert('Chưa có sinh viên nào hoàn thành hoạt động');
+      return;
+    }
+
+    if (!window.confirm(`Gửi yêu cầu cung cấp minh chứng cho ${completedList.length} sinh viên đã hoàn thành?`)) {
+      return;
+    }
+
+    try {
+      setSendingRequest(true);
+      await clbService.sendEvidenceRequest(hoat_dong_id);
+      alert('Đã gửi yêu cầu cung cấp minh chứng thành công! Admin sẽ xử lý yêu cầu của bạn.');
+    } catch (error) {
+      if (error.response?.status === 400) {
+        alert(error.response.data.message);
+      } else {
+        alert('Lỗi: ' + (error.response?.data?.message || 'Không thể gửi yêu cầu'));
+      }
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
   const pendingList = registrations.filter(r => r.trang_thai === 'cho_duyet');
   const participatingList = registrations.filter(r => r.trang_thai === 'dang_tham_gia');
 
@@ -164,6 +286,48 @@ const DuyetThamGiaHoatDong = () => {
         <h1>Quản lý tham gia hoạt động</h1>
         {activity && <h2>{activity.ten_hoat_dong}</h2>}
       </div>
+
+      {/* Thống kê tổng quan */}
+      {activity && (
+        <div className="activity-stats-summary" style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          padding: '20px',
+          borderRadius: '12px',
+          color: 'white',
+          marginBottom: '24px',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.3)'
+        }}>
+          <div style={{display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px'}}>
+            <div style={{textAlign: 'center'}}>
+              <div style={{fontSize: '14px', opacity: 0.9}}>Tổng đăng ký</div>
+              <div style={{fontSize: '28px', fontWeight: 'bold', marginTop: '4px'}}>
+                {activity.tong_so_dang_ky || 0}
+              </div>
+              {activity.so_luong_toi_da > 0 && (
+                <div style={{fontSize: '12px', opacity: 0.8}}>/ {activity.so_luong_toi_da} người</div>
+              )}
+            </div>
+            <div style={{textAlign: 'center'}}>
+              <div style={{fontSize: '14px', opacity: 0.9}}>Chờ duyệt</div>
+              <div style={{fontSize: '28px', fontWeight: 'bold', marginTop: '4px'}}>
+                {activity.so_cho_duyet || 0}
+              </div>
+            </div>
+            <div style={{textAlign: 'center'}}>
+              <div style={{fontSize: '14px', opacity: 0.9}}>Đang tham gia</div>
+              <div style={{fontSize: '28px', fontWeight: 'bold', marginTop: '4px'}}>
+                {activity.so_dang_tham_gia || 0}
+              </div>
+            </div>
+            <div style={{textAlign: 'center'}}>
+              <div style={{fontSize: '14px', opacity: 0.9}}>Hoàn thành</div>
+              <div style={{fontSize: '28px', fontWeight: 'bold', marginTop: '4px'}}>
+                {activity.so_hoan_thanh || 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="tabs">
         <button 
@@ -188,7 +352,18 @@ const DuyetThamGiaHoatDong = () => {
 
       {activeTab === 'pending' && (
         <div className="list-section">
-          <h3>Danh sách chờ duyệt tham gia (Lần 1)</h3>
+          <div className="section-header">
+            <h3>Danh sách chờ duyệt tham gia (Lần 1)</h3>
+            {selectedPending.length > 0 && (
+              <button 
+                className="btn-bulk-approve"
+                onClick={handleBulkApprove}
+                disabled={processing === 'bulk'}
+              >
+                <FaCheck /> Phê duyệt {selectedPending.length} đăng ký
+              </button>
+            )}
+          </div>
           {pendingList.length === 0 ? (
             <p className="empty-message">Không có yêu cầu nào đang chờ duyệt</p>
           ) : (
@@ -196,6 +371,14 @@ const DuyetThamGiaHoatDong = () => {
               <table className="registration-table">
                 <thead>
                   <tr>
+                    <th style={{width: '50px'}}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectAllPending}
+                        onChange={handleSelectAllPending}
+                        disabled={pendingList.length === 0}
+                      />
+                    </th>
                     <th>Ảnh</th>
                     <th>Họ tên</th>
                     <th>MSSV</th>
@@ -209,6 +392,20 @@ const DuyetThamGiaHoatDong = () => {
                 <tbody>
                   {pendingList.map(reg => (
                     <tr key={reg.id}>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedPending.includes(reg.id)}
+                          onChange={() => handleSelectPending(reg.id)}
+                        />
+                      </td>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedPending.includes(reg.id)}
+                          onChange={() => handleSelectPending(reg.id)}
+                        />
+                      </td>
                       <td>
                         <img 
                           src={reg.anh_dai_dien || '/avtar.png'} 
@@ -252,7 +449,18 @@ const DuyetThamGiaHoatDong = () => {
 
       {activeTab === 'participating' && (
         <div className="list-section">
-          <h3>Danh sách đang tham gia (Chờ xác nhận hoàn thành - Lần 2)</h3>
+          <div className="section-header">
+            <h3>Danh sách đang tham gia (Chờ xác nhận hoàn thành - Lần 2)</h3>
+            {selectedParticipating.length > 0 && (
+              <button 
+                className="btn-bulk-confirm"
+                onClick={handleBulkConfirm}
+                disabled={processing === 'bulk'}
+              >
+                <FaUserCheck /> Xác nhận {selectedParticipating.length} sinh viên
+              </button>
+            )}
+          </div>
           {participatingList.length === 0 ? (
             <p className="empty-message">Chưa có sinh viên nào đang tham gia</p>
           ) : (
@@ -260,6 +468,14 @@ const DuyetThamGiaHoatDong = () => {
               <table className="registration-table">
                 <thead>
                   <tr>
+                    <th style={{width: '50px'}}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectAllParticipating}
+                        onChange={handleSelectAllParticipating}
+                        disabled={participatingList.length === 0}
+                      />
+                    </th>
                     <th>Ảnh</th>
                     <th>Họ tên</th>
                     <th>MSSV</th>
@@ -272,6 +488,13 @@ const DuyetThamGiaHoatDong = () => {
                 <tbody>
                   {participatingList.map(reg => (
                     <tr key={reg.id}>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedParticipating.includes(reg.id)}
+                          onChange={() => handleSelectParticipating(reg.id)}
+                        />
+                      </td>
                       <td>
                         <img 
                           src={reg.anh_dai_dien || '/avtar.png'} 
@@ -307,9 +530,30 @@ const DuyetThamGiaHoatDong = () => {
         <div className="list-section">
           <div className="section-header">
             <h3>Danh sách đã hoàn thành hoạt động</h3>
-            <button className="btn-export" onClick={handleExport}>
-              <FaFileExport /> Xuất Excel
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn-export" onClick={handleExport}>
+                <FaFileExport /> Xuất Excel
+              </button>
+              <button 
+                className="btn-send-request" 
+                onClick={handleSendEvidenceRequest}
+                disabled={sendingRequest || completedList.length === 0}
+                style={{
+                  backgroundColor: '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 20px',
+                  borderRadius: '5px',
+                  cursor: sendingRequest || completedList.length === 0 ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: sendingRequest || completedList.length === 0 ? 0.6 : 1
+                }}
+              >
+                <FaFileExport /> {sendingRequest ? 'Đang gửi...' : 'Gửi yêu cầu minh chứng'}
+              </button>
+            </div>
           </div>
           
           {completedList.length === 0 ? (

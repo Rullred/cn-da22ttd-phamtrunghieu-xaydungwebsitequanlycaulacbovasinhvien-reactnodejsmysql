@@ -8,33 +8,75 @@ const upload = require('../middleware/upload');
 router.get('/rooms', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userType = req.user.loai_nguoi_dung;
+
+    // Kiểm tra bảng phong_chat có tồn tại không
+    try {
+      await db.query('SELECT 1 FROM phong_chat LIMIT 1');
+    } catch (tableError) {
+      // Bảng chưa tồn tại, trả về mảng rỗng
+      return res.json([]);
+    }
+
+    let rooms;
     
-    const [rooms] = await db.query(`
-      SELECT 
-        pc.id,
-        pc.ma_phong,
-        pc.ten_phong,
-        pc.trang_thai,
-        pc.hoat_dong_id,
-        hd.ten_hoat_dong,
-        hd.thoi_gian_bat_dau,
-        clb.ten_clb,
-        tvpc.vai_tro,
-        (SELECT COUNT(*) FROM thanh_vien_phong_chat WHERE phong_chat_id = pc.id) as so_thanh_vien,
-        (SELECT tn.noi_dung FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as tin_nhan_cuoi,
-        (SELECT tn.created_at FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as thoi_gian_tin_nhan_cuoi
-      FROM phong_chat pc
-      JOIN thanh_vien_phong_chat tvpc ON pc.id = tvpc.phong_chat_id
-      JOIN hoat_dong hd ON pc.hoat_dong_id = hd.id
-      JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
-      WHERE tvpc.nguoi_dung_id = ? AND pc.trang_thai = 'hoat_dong' AND tvpc.vai_tro != 'kicked'
-      ORDER BY thoi_gian_tin_nhan_cuoi DESC, pc.created_at DESC
-    `, [userId]);
+    // Admin có thể xem tất cả phòng chat
+    if (userType === 'admin') {
+      [rooms] = await db.query(
+        `
+        SELECT 
+          pc.id,
+          pc.ma_phong,
+          pc.ten_phong,
+          pc.trang_thai,
+          pc.hoat_dong_id,
+          hd.ten_hoat_dong,
+          hd.thoi_gian_bat_dau,
+          COALESCE(clb.ten_clb, 'Trường Đại học Trà Vinh') as ten_clb,
+          'admin' as vai_tro,
+          (SELECT COUNT(*) FROM thanh_vien_phong_chat WHERE phong_chat_id = pc.id AND vai_tro != 'kicked') as so_thanh_vien,
+          (SELECT tn.noi_dung FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as tin_nhan_cuoi,
+          (SELECT tn.created_at FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as thoi_gian_tin_nhan_cuoi
+        FROM phong_chat pc
+        JOIN hoat_dong hd ON pc.hoat_dong_id = hd.id
+        LEFT JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
+        WHERE pc.trang_thai = 'hoat_dong'
+        ORDER BY thoi_gian_tin_nhan_cuoi DESC, pc.created_at DESC
+      `
+      );
+    } else {
+      // Sinh viên và chủ nhiệm chỉ xem phòng chat mình tham gia
+      [rooms] = await db.query(
+        `
+        SELECT 
+          pc.id,
+          pc.ma_phong,
+          pc.ten_phong,
+          pc.trang_thai,
+          pc.hoat_dong_id,
+          hd.ten_hoat_dong,
+          hd.thoi_gian_bat_dau,
+          COALESCE(clb.ten_clb, 'Trường Đại học Trà Vinh') as ten_clb,
+          tvpc.vai_tro,
+          (SELECT COUNT(*) FROM thanh_vien_phong_chat WHERE phong_chat_id = pc.id AND vai_tro != 'kicked') as so_thanh_vien,
+          (SELECT tn.noi_dung FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as tin_nhan_cuoi,
+          (SELECT tn.created_at FROM tin_nhan tn WHERE tn.phong_chat_id = pc.id ORDER BY tn.created_at DESC LIMIT 1) as thoi_gian_tin_nhan_cuoi
+        FROM phong_chat pc
+        JOIN thanh_vien_phong_chat tvpc ON pc.id = tvpc.phong_chat_id
+        JOIN hoat_dong hd ON pc.hoat_dong_id = hd.id
+        LEFT JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
+        WHERE tvpc.nguoi_dung_id = ? AND pc.trang_thai = 'hoat_dong' AND tvpc.vai_tro != 'kicked'
+        ORDER BY thoi_gian_tin_nhan_cuoi DESC, pc.created_at DESC
+      `,
+        [userId]
+      );
+    }
 
     res.json(rooms);
   } catch (error) {
     console.error('Get chat rooms error:', error);
-    res.status(500).json({ message: 'Lỗi lấy danh sách phòng chat', error: error.message });
+    // Trả về mảng rỗng thay vì lỗi 500
+    res.json([]);
   }
 });
 
@@ -43,15 +85,19 @@ router.get('/room/:roomId', authenticateToken, async (req, res) => {
   try {
     const { roomId } = req.params;
     const userId = req.user.id;
+    const userType = req.user.loai_nguoi_dung;
 
-    // Kiểm tra user có trong phòng chat không (và không bị kick)
-    const [membership] = await db.query(
-      'SELECT * FROM thanh_vien_phong_chat WHERE phong_chat_id = ? AND nguoi_dung_id = ? AND vai_tro != "kicked"',
-      [roomId, userId]
-    );
+    // Admin có quyền truy cập tất cả phòng chat
+    if (userType !== 'admin') {
+      // Kiểm tra user có trong phòng chat không (và không bị kick)
+      const [membership] = await db.query(
+        'SELECT * FROM thanh_vien_phong_chat WHERE phong_chat_id = ? AND nguoi_dung_id = ? AND vai_tro != "kicked"',
+        [roomId, userId]
+      );
 
-    if (membership.length === 0) {
-      return res.status(403).json({ message: 'Bạn không có quyền truy cập phòng chat này' });
+      if (membership.length === 0) {
+        return res.status(403).json({ message: 'Bạn không có quyền truy cập phòng chat này' });
+      }
     }
 
     // Lấy thông tin phòng chat
@@ -61,10 +107,10 @@ router.get('/room/:roomId', authenticateToken, async (req, res) => {
         hd.ten_hoat_dong,
         hd.thoi_gian_bat_dau,
         hd.dia_diem,
-        clb.ten_clb
+        COALESCE(clb.ten_clb, 'Trường Đại học Trà Vinh') as ten_clb
       FROM phong_chat pc
       JOIN hoat_dong hd ON pc.hoat_dong_id = hd.id
-      JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
+      LEFT JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
       WHERE pc.id = ?
     `, [roomId]);
 
@@ -119,15 +165,19 @@ router.post('/room/:roomId/message', authenticateToken, async (req, res) => {
     const { roomId } = req.params;
     const { noi_dung, loai_tin_nhan = 'text' } = req.body;
     const userId = req.user.id;
+    const userType = req.user.loai_nguoi_dung;
 
-    // Kiểm tra user có trong phòng chat không
-    const [membership] = await db.query(
-      'SELECT * FROM thanh_vien_phong_chat WHERE phong_chat_id = ? AND nguoi_dung_id = ?',
-      [roomId, userId]
-    );
+    // Admin không cần kiểm tra membership
+    if (userType !== 'admin') {
+      // Kiểm tra user có trong phòng chat không
+      const [membership] = await db.query(
+        'SELECT * FROM thanh_vien_phong_chat WHERE phong_chat_id = ? AND nguoi_dung_id = ?',
+        [roomId, userId]
+      );
 
-    if (membership.length === 0) {
-      return res.status(403).json({ message: 'Bạn không có quyền gửi tin nhắn trong phòng này' });
+      if (membership.length === 0) {
+        return res.status(403).json({ message: 'Bạn không có quyền gửi tin nhắn trong phòng này' });
+      }
     }
 
     // Kiểm tra phòng chat còn hoạt động không
@@ -270,33 +320,51 @@ router.post('/sync', authenticateToken, async (req, res) => {
     let syncedRooms = 0;
     let syncedMembers = 0;
 
+    // Kiểm tra bảng phong_chat có tồn tại không
+    try {
+      await db.query('SELECT 1 FROM phong_chat LIMIT 1');
+    } catch (tableError) {
+      // Bảng chưa tồn tại, trả về empty
+      console.log('Bảng phong_chat chưa tồn tại, cần chạy migration');
+      return res.json({ 
+        message: 'Chưa có bảng chat, vui lòng liên hệ admin',
+        syncedRooms: 0,
+        syncedMembers: 0
+      });
+    }
+
     // 1. Tạo phòng chat cho các hoạt động chưa có phòng chat
     const [activitiesWithoutRoom] = await db.query(`
       SELECT hd.id, hd.ten_hoat_dong, hd.cau_lac_bo_id, clb.chu_nhiem_id
       FROM hoat_dong hd
-      JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
+      LEFT JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
       LEFT JOIN phong_chat pc ON hd.id = pc.hoat_dong_id
-      WHERE pc.id IS NULL AND hd.trang_thai IN ('sap_dien_ra', 'dang_dien_ra')
+      WHERE pc.id IS NULL 
+        AND hd.trang_thai IN ('sap_dien_ra', 'dang_dien_ra')
     `);
 
     for (const activity of activitiesWithoutRoom) {
-      // Tạo phòng chat
-      const [roomResult] = await db.query(
-        'INSERT INTO phong_chat (hoat_dong_id, ma_phong, ten_phong) VALUES (?, ?, ?)',
-        [activity.id, `HD-${activity.id}`, activity.ten_hoat_dong]
-      );
-      
-      // Thêm chủ nhiệm vào phòng
-      if (activity.chu_nhiem_id) {
-        await db.query(
-          'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "chu_nhiem")',
-          [roomResult.insertId, activity.chu_nhiem_id]
+      try {
+        // Tạo phòng chat
+        const [roomResult] = await db.query(
+          'INSERT INTO phong_chat (hoat_dong_id, ma_phong, ten_phong) VALUES (?, ?, ?)',
+          [activity.id, `HD-${activity.id}`, activity.ten_hoat_dong]
         );
+        
+        // Thêm chủ nhiệm vào phòng (nếu có)
+        if (activity.chu_nhiem_id) {
+          await db.query(
+            'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "chu_nhiem")',
+            [roomResult.insertId, activity.chu_nhiem_id]
+          );
+        }
+        syncedRooms++;
+      } catch (err) {
+        console.log('Skip activity:', activity.id, err.message);
       }
-      syncedRooms++;
     }
 
-    // 2. Thêm sinh viên đã được duyệt vào phòng chat (không thêm lại người đã bị kick)
+    // 2. Thêm sinh viên đã được duyệt vào phòng chat
     const [approvedRegistrations] = await db.query(`
       SELECT 
         dk.sinh_vien_id,
@@ -307,22 +375,20 @@ router.post('/sync', authenticateToken, async (req, res) => {
       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
       JOIN phong_chat pc ON dk.hoat_dong_id = pc.hoat_dong_id
       LEFT JOIN thanh_vien_phong_chat tvpc ON pc.id = tvpc.phong_chat_id AND sv.nguoi_dung_id = tvpc.nguoi_dung_id
-      WHERE dk.trang_thai = 'da_duyet' 
-        AND (tvpc.id IS NULL OR tvpc.vai_tro = 'kicked')
-        AND NOT EXISTS (
-          SELECT 1 FROM thanh_vien_phong_chat t2 
-          WHERE t2.phong_chat_id = pc.id 
-          AND t2.nguoi_dung_id = sv.nguoi_dung_id 
-          AND t2.vai_tro = 'kicked'
-        )
+      WHERE dk.trang_thai IN ('da_duyet', 'dang_tham_gia', 'hoan_thanh')
+        AND tvpc.id IS NULL
     `);
 
     for (const reg of approvedRegistrations) {
-      await db.query(
-        'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "sinh_vien")',
-        [reg.phong_chat_id, reg.nguoi_dung_id]
-      );
-      syncedMembers++;
+      try {
+        await db.query(
+          'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "sinh_vien")',
+          [reg.phong_chat_id, reg.nguoi_dung_id]
+        );
+        syncedMembers++;
+      } catch (err) {
+        console.log('Skip duplicate member:', reg.nguoi_dung_id);
+      }
     }
 
     res.json({ 

@@ -18,7 +18,8 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaInfoCircle,
-  FaFileAlt
+  FaFileAlt,
+  FaComments
 } from 'react-icons/fa';
 import PheDuyetHoatDong from './PheDuyetHoatDong';
 import QuanLyCauLacBo from './QuanLyCauLacBo';
@@ -28,6 +29,8 @@ import ThongKe from './ThongKe';
 import TaoHoatDong from './TaoHoatDong';
 import QuanLyHoatDong from './QuanLyHoatDong';
 import DanhSachHoatDong from './DanhSachHoatDong';
+import ChatList from '../Chat/ChatList';
+import ChatRoom from '../Chat/ChatRoom';
 import './AdminDashboard.css';
 
 const AdminHome = () => {
@@ -384,6 +387,13 @@ const AdminDashboard = () => {
             <FaFileAlt />
             <span>Danh sách hoạt động</span>
           </NavLink>
+          <NavLink 
+            to="/admin/chat" 
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <FaComments />
+            <span>Phòng chat</span>
+          </NavLink>
         </nav>
         <div className="sidebar-footer">
           <div className="user-info">
@@ -409,6 +419,8 @@ const AdminDashboard = () => {
           <Route path="top-sinh-vien" element={<TopSinhVien />} />
           <Route path="thong-ke" element={<ThongKe />} />
           <Route path="danh-sach-hoat-dong" element={<DanhSachHoatDong />} />
+          <Route path="chat" element={<ChatList />} />
+          <Route path="chat/:roomId" element={<ChatRoom />} />
         </Routes>
       </div>
     </div>

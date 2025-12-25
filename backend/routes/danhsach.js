@@ -54,7 +54,7 @@ const upload = multer({
 
 // ==================== API CHO CLB ====================
 
-// CLB gửi yêu cầu làm danh sách
+// CLB gửi yêu cầu làm danh sách (cách cũ - thủ công)
 router.post('/clb/gui-yeu-cau', authenticateToken, isChuNhiemCLB, upload.single('file_excel'), async (req, res) => {
   try {
     const { ten_hoat_dong, ngay_to_chuc, mo_ta } = req.body;
@@ -112,6 +112,91 @@ router.post('/clb/gui-yeu-cau', authenticateToken, isChuNhiemCLB, upload.single(
   }
 });
 
+// CLB gửi yêu cầu cung cấp minh chứng từ hoạt động đã hoàn thành
+router.post('/clb/gui-yeu-cau-tu-hoat-dong/:hoat_dong_id', authenticateToken, isChuNhiemCLB, async (req, res) => {
+  try {
+    const { hoat_dong_id } = req.params;
+    
+    // Lấy CLB của chủ nhiệm
+    const [clubs] = await db.query(
+      'SELECT id, ten_clb FROM cau_lac_bo WHERE chu_nhiem_id = ?',
+      [req.user.id]
+    );
+
+    if (clubs.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy CLB của bạn' });
+    }
+
+    // Lấy thông tin hoạt động và kiểm tra quyền
+    const [activities] = await db.query(
+      `SELECT hd.*, 
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'hoan_thanh') as so_luong_hoan_thanh
+       FROM hoat_dong hd 
+       WHERE hd.id = ? AND hd.cau_lac_bo_id = ?`,
+      [hoat_dong_id, clubs[0].id]
+    );
+
+    if (activities.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy hoạt động hoặc bạn không có quyền' });
+    }
+
+    const activity = activities[0];
+
+    if (activity.so_luong_hoan_thanh === 0) {
+      return res.status(400).json({ message: 'Chưa có sinh viên nào hoàn thành hoạt động này' });
+    }
+
+    // Kiểm tra xem đã gửi yêu cầu cho hoạt động này chưa
+    const [existing] = await db.query(
+      `SELECT id FROM yeu_cau_danh_sach WHERE hoat_dong_id = ?`,
+      [hoat_dong_id]
+    );
+
+    if (existing.length > 0) {
+      return res.status(400).json({ message: 'Đã gửi yêu cầu cho hoạt động này rồi' });
+    }
+
+    // Tạo yêu cầu mới
+    const [result] = await db.query(
+      `INSERT INTO yeu_cau_danh_sach (cau_lac_bo_id, hoat_dong_id, ten_hoat_dong, ngay_to_chuc, mo_ta)
+       VALUES (?, ?, ?, ?, ?)`,
+      [clubs[0].id, hoat_dong_id, activity.ten_hoat_dong, 
+       activity.thoi_gian_bat_dau, `Hoạt động có ${activity.so_luong_hoan_thanh} sinh viên hoàn thành`]
+    );
+
+    // Gửi thông báo cho Admin
+    const [admins] = await db.query(
+      'SELECT id FROM nguoi_dung WHERE loai_nguoi_dung = "admin"'
+    );
+
+    for (const admin of admins) {
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung, lien_ket)
+         VALUES (?, 'yeu_cau_minh_chung', 'Yêu cầu cung cấp minh chứng', ?, '/admin/danh-sach-hoat-dong')`,
+        [admin.id, `${clubs[0].ten_clb} yêu cầu cung cấp minh chứng cho hoạt động "${activity.ten_hoat_dong}"`]
+      );
+    }
+
+    // Real-time notification
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+    for (const admin of admins) {
+      const socketId = userSockets?.get(admin.id);
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'yeu_cau_minh_chung',
+          message: `${clubs[0].ten_clb} yêu cầu cung cấp minh chứng`
+        });
+      }
+    }
+
+    res.json({ message: 'Gửi yêu cầu thành công', id: result.insertId });
+  } catch (error) {
+    console.error('Lỗi gửi yêu cầu:', error);
+    res.status(500).json({ message: 'Lỗi gửi yêu cầu', error: error.message });
+  }
+});
+
 // CLB xem danh sách yêu cầu đã gửi
 router.get('/clb/yeu-cau', authenticateToken, isChuNhiemCLB, async (req, res) => {
   try {
@@ -125,7 +210,11 @@ router.get('/clb/yeu-cau', authenticateToken, isChuNhiemCLB, async (req, res) =>
     }
 
     const [requests] = await db.query(
-      `SELECT * FROM yeu_cau_danh_sach WHERE cau_lac_bo_id = ? ORDER BY created_at DESC`,
+      `SELECT y.*, 
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = y.hoat_dong_id AND trang_thai = 'hoan_thanh') as so_luong_hoan_thanh
+       FROM yeu_cau_danh_sach y 
+       WHERE y.cau_lac_bo_id = ? 
+       ORDER BY y.created_at DESC`,
       [clubs[0].id]
     );
 
@@ -169,7 +258,8 @@ router.get('/clb/danh-sach-file', authenticateToken, isChuNhiemCLB, async (req, 
 router.get('/admin/yeu-cau', authenticateToken, isAdmin, async (req, res) => {
   try {
     const [requests] = await db.query(
-      `SELECT y.*, c.ten_clb 
+      `SELECT y.*, c.ten_clb,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = y.hoat_dong_id AND trang_thai = 'hoan_thanh') as so_luong_hoan_thanh
        FROM yeu_cau_danh_sach y
        JOIN cau_lac_bo c ON y.cau_lac_bo_id = c.id
        ORDER BY y.created_at DESC`
@@ -215,6 +305,35 @@ router.put('/admin/yeu-cau/:id/trang-thai', authenticateToken, isAdmin, async (r
     res.json({ message: 'Cập nhật trạng thái thành công' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi cập nhật trạng thái', error: error.message });
+  }
+});
+
+// Admin tải danh sách sinh viên hoàn thành từ hoạt động
+router.get('/admin/tai-danh-sach/:hoat_dong_id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { hoat_dong_id } = req.params;
+
+    // Lấy danh sách sinh viên đã hoàn thành
+    const [participants] = await db.query(
+      `SELECT 
+         sv.ho_ten, sv.ma_sinh_vien, sv.lop, sv.khoa, sv.khoa_hoc,
+         dk.ngay_dang_ky, dk.ngay_duyet_lan_1, dk.ngay_duyet_lan_2,
+         hd.ten_hoat_dong, hd.thoi_gian_bat_dau, hd.thoi_gian_ket_thuc, hd.dia_diem
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.hoat_dong_id = ? AND dk.trang_thai = 'hoan_thanh'
+       ORDER BY sv.ho_ten`,
+      [hoat_dong_id]
+    );
+
+    if (participants.length === 0) {
+      return res.status(404).json({ message: 'Không có sinh viên nào hoàn thành hoạt động này' });
+    }
+
+    res.json(participants);
+  } catch (error) {
+    res.status(500).json({ message: 'Lỗi tải danh sách', error: error.message });
   }
 });
 
@@ -302,7 +421,38 @@ router.delete('/admin/file/:id', authenticateToken, isAdmin, async (req, res) =>
 
     res.json({ message: 'Xóa file thành công' });
   } catch (error) {
+    console.error('Lỗi xóa file:', error);
     res.status(500).json({ message: 'Lỗi xóa file', error: error.message });
+  }
+});
+
+// Admin xóa yêu cầu
+router.delete('/admin/yeu-cau/:id', authenticateToken, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Lấy thông tin yêu cầu
+    const [requests] = await db.query('SELECT file_excel FROM yeu_cau_danh_sach WHERE id = ?', [id]);
+    
+    if (requests.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy yêu cầu' });
+    }
+
+    // Xóa file Excel nếu có
+    if (requests[0].file_excel) {
+      const filePath = path.join(__dirname, '..', requests[0].file_excel);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // Xóa yêu cầu
+    await db.query('DELETE FROM yeu_cau_danh_sach WHERE id = ?', [id]);
+
+    res.json({ message: 'Xóa yêu cầu thành công' });
+  } catch (error) {
+    console.error('Lỗi xóa yêu cầu:', error);
+    res.status(500).json({ message: 'Lỗi xóa yêu cầu', error: error.message });
   }
 });
 

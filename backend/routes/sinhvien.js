@@ -284,14 +284,20 @@ router.get('/my-activities', async (req, res) => {
     }
 
     const [activities] = await db.query(
-      `SELECT hd.*, 
-              COALESCE(clb.ten_clb, hd.don_vi_phu_trach) as ten_clb, 
+      `SELECT hd.id as hoat_dong_id,
+              hd.ten_hoat_dong,
+              hd.mo_ta,
+              hd.thoi_gian_bat_dau,
+              hd.thoi_gian_ket_thuc,
+              hd.dia_diem,
+              hd.trang_thai,
+              COALESCE(clb.ten_clb, 'Trường Đại học Trà Vinh') as ten_clb, 
+              dk.id,
               dk.id as dang_ky_id,
               dk.trang_thai as trang_thai_dang_ky, 
               dk.ngay_dang_ky,
               dk.ghi_chu,
-              dk.ly_do_tu_choi,
-              hd.id as hoat_dong_id
+              dk.ngay_dang_ky as ngay_duyet
        FROM dang_ky_hoat_dong dk
        JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
        LEFT JOIN cau_lac_bo clb ON hd.cau_lac_bo_id = clb.id
@@ -302,6 +308,7 @@ router.get('/my-activities', async (req, res) => {
 
     res.json(activities);
   } catch (error) {
+    console.error('Lỗi lấy danh sách hoạt động đã đăng ký:', error);
     res.status(500).json({ message: 'Lỗi lấy danh sách', error: error.message });
   }
 });

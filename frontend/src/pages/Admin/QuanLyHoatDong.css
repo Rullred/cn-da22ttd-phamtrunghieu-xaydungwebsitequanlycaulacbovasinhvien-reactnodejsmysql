@@ -71,18 +71,55 @@
 }
 
 .activity-item {
-  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   border-radius: 14px;
-  cursor: pointer;
   transition: all 0.3s ease;
   margin-bottom: 12px;
   background: rgba(0, 0, 0, 0.02);
   border: 2px solid transparent;
 }
 
+.activity-item-content {
+  flex: 1;
+  padding: 18px;
+  cursor: pointer;
+}
+
+.activity-item-actions {
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-delete-activity {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+  border: none;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+}
+
+.btn-delete-activity:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+}
+
+.btn-delete-activity:active {
+  transform: translateY(0) scale(0.98);
+}
+
 .activity-item:hover {
   background: rgba(102, 126, 234, 0.05);
-  transform: translateX(5px);
 }
 
 .activity-item.active {

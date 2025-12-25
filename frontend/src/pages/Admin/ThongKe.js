@@ -12,7 +12,8 @@ import {
   FaCheckCircle,
   FaTrophy,
   FaUniversity,
-  FaClock
+  FaClock,
+  FaSyncAlt
 } from 'react-icons/fa';
 import { adminService, danhgiaService } from '../../services/api';
 import './ThongKe.css';
@@ -48,6 +49,23 @@ const ThongKe = () => {
     fetchRatings();
   }, [selectedPeriod]);
 
+  // Auto-refresh khi người dùng quay lại trang
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // Trang được focus lại - refresh dữ liệu
+        fetchStatistics();
+        fetchRatings();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedPeriod]); // Re-attach listener when period changes
+
   const fetchStatistics = async () => {
     try {
       console.log('Fetching statistics with period:', selectedPeriod);
@@ -75,6 +93,12 @@ const ThongKe = () => {
       console.error('Fetch ratings error:', error);
       setRatings([]);
     }
+  };
+
+  const handleRefresh = () => {
+    setLoading(true);
+    fetchStatistics();
+    fetchRatings();
   };
 
   const getCategoryLabel = (category) => {
@@ -147,6 +171,14 @@ const ThongKe = () => {
           </div>
         </div>
         <div className="period-selector">
+          <button 
+            className="refresh-btn"
+            onClick={handleRefresh}
+            disabled={loading}
+            title="Làm mới dữ liệu"
+          >
+            <FaSyncAlt className={loading ? 'spinning' : ''} />
+          </button>
           <button 
             className={`period-btn ${selectedPeriod === 'week' ? 'active' : ''}`}
             onClick={() => setSelectedPeriod('week')}
@@ -401,7 +433,7 @@ const ThongKe = () => {
           <div className="rating-overview">
             <div className="rating-summary">
               <div className="average-rating">
-                <h2>{ratingStats.average?.toFixed(1) || '0.0'}</h2>
+                <h2>{(parseFloat(ratingStats.average) || 0).toFixed(1)}</h2>
                 <div className="stars">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <FaStar 

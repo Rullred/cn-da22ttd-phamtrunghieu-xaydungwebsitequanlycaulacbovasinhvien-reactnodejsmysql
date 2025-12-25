@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { clbService } from '../../services/api';
 import Loading from '../../components/Loading';
-import { FaUser, FaSearch, FaUserPlus, FaTimes } from 'react-icons/fa';
+import { FaUser, FaSearch, FaUserPlus, FaTimes, FaFileExport } from 'react-icons/fa';
 import api from '../../services/api';
 
 // Hàm xử lý URL avatar
@@ -16,6 +16,12 @@ const QuanLyThanhVien = () => {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('members');
+  
+  // State cho bulk select
+  const [selectedRequests, setSelectedRequests] = useState([]);
+  const [selectAllRequests, setSelectAllRequests] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [selectAllMembers, setSelectAllMembers] = useState(false);
   
   // State cho tìm kiếm sinh viên
   const [searchMSSV, setSearchMSSV] = useState('');
@@ -39,6 +45,121 @@ const QuanLyThanhVien = () => {
       console.error('Fetch data error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handlers cho bulk select
+  const handleSelectAllRequests = (e) => {
+    const checked = e.target.checked;
+    setSelectAllRequests(checked);
+    if (checked) {
+      setSelectedRequests(requests.map(r => r.id));
+    } else {
+      setSelectedRequests([]);
+    }
+  };
+
+  const handleSelectRequest = (id) => {
+    setSelectedRequests(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Handlers cho chọn tất cả thành viên
+  const handleSelectAllMembers = (e) => {
+    const checked = e.target.checked;
+    setSelectAllMembers(checked);
+    if (checked) {
+      setSelectedMembers(members.map(m => m.id));
+    } else {
+      setSelectedMembers([]);
+    }
+  };
+
+  const handleSelectMember = (id) => {
+    setSelectedMembers(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(item => item !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
+  // Xuất danh sách thành viên ra Excel
+  const handleExportMembers = () => {
+    if (members.length === 0) {
+      alert('Chưa có thành viên nào để xuất');
+      return;
+    }
+
+    // Lọc thành viên đã chọn hoặc tất cả nếu không chọn
+    const membersToExport = selectedMembers.length > 0 
+      ? members.filter(m => selectedMembers.includes(m.id))
+      : members;
+
+    if (membersToExport.length === 0) {
+      alert('Vui lòng chọn ít nhất một thành viên để xuất');
+      return;
+    }
+
+    // Tạo CSV content
+    const headers = ['STT', 'Họ tên', 'MSSV', 'Lớp', 'Khoa', 'Khóa học', 'Vai trò', 'Ngày tham gia'];
+    const rows = membersToExport.map((member, index) => [
+      index + 1,
+      member.ho_ten,
+      member.ma_sinh_vien,
+      member.lop || '',
+      member.khoa || '',
+      member.khoa_hoc ? `Khóa ${member.khoa_hoc}` : '',
+      member.vai_tro === 'thanh_vien' ? 'Thành viên' : member.vai_tro,
+      new Date(member.ngay_duyet).toLocaleDateString('vi-VN')
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    // Thêm BOM cho UTF-8
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Danh_sach_thanh_vien_CLB_${Date.now()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    alert(`Đã xuất ${membersToExport.length} thành viên!`);
+  };
+
+  // Bulk approve members
+  const handleBulkApprove = async () => {
+    if (selectedRequests.length === 0) {
+      alert('Vui lòng chọn ít nhất một yêu cầu');
+      return;
+    }
+
+    if (!window.confirm(`Phê duyệt ${selectedRequests.length} yêu cầu đã chọn?`)) {
+      return;
+    }
+
+    try {
+      await clbService.approveMembersBulk(selectedRequests);
+      alert(`Đã phê duyệt thành công ${selectedRequests.length} thành viên!`);
+      setSelectedRequests([]);
+      setSelectAllRequests(false);
+      fetchData();
+    } catch (error) {
+      alert('Lỗi: ' + (error.response?.data?.message || 'Không thể phê duyệt hàng loạt'));
     }
   };
 
@@ -229,6 +350,26 @@ const QuanLyThanhVien = () => {
 
       {activeTab === 'requests' && (
         <div className="requests-section">
+          <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <h3>Yêu cầu chờ duyệt ({requests.length})</h3>
+              {requests.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox"
+                    checked={selectAllRequests}
+                    onChange={handleSelectAllRequests}
+                  />
+                  <span style={{ fontWeight: '500' }}>Chọn tất cả</span>
+                </label>
+              )}
+            </div>
+            {selectedRequests.length > 0 && (
+              <button onClick={handleBulkApprove} className="btn btn-success">
+                <FaUserPlus /> Phê duyệt {selectedRequests.length} yêu cầu
+              </button>
+            )}
+          </div>
           {requests.length === 0 ? (
             <div className="card text-center">
               <p>Không có yêu cầu nào</p>
@@ -237,6 +378,13 @@ const QuanLyThanhVien = () => {
             <div className="members-grid">
               {requests.map(request => (
                 <div key={request.id} className="member-card card">
+                  <div className="card-checkbox">
+                    <input 
+                      type="checkbox"
+                      checked={selectedRequests.includes(request.id)}
+                      onChange={() => handleSelectRequest(request.id)}
+                    />
+                  </div>
                   <div className="member-avatar">
                     {request.anh_dai_dien ? (
                       <img 
@@ -278,25 +426,58 @@ const QuanLyThanhVien = () => {
               <p>Chưa có thành viên nào</p>
             </div>
           ) : (
-            <div className="table-container">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Ảnh</th>
-                    <th>Họ tên</th>
-                    <th>MSSV</th>
-                    <th>Lớp</th>
-                    <th>Khoa</th>
-                    <th>Vai trò</th>
-                    <th>Ngày tham gia</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(member => (
-                    <tr key={member.id}>
-                      <td>
-                        <div className="table-avatar">
+            <>
+              <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h3>Danh sách thành viên ({members.length})</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {selectedMembers.length > 0 && (
+                    <span style={{ padding: '8px 15px', background: '#e8f4fd', borderRadius: '5px', color: '#3498db', fontWeight: '500' }}>
+                      Đã chọn: {selectedMembers.length}
+                    </span>
+                  )}
+                  <button 
+                    className="btn btn-success"
+                    onClick={handleExportMembers}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <FaFileExport /> Xuất Excel {selectedMembers.length > 0 && `(${selectedMembers.length})`}
+                  </button>
+                </div>
+              </div>
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '50px' }}>
+                        <input 
+                          type="checkbox"
+                          checked={selectAllMembers}
+                          onChange={handleSelectAllMembers}
+                          disabled={members.length === 0}
+                        />
+                      </th>
+                      <th>Ảnh</th>
+                      <th>Họ tên</th>
+                      <th>MSSV</th>
+                      <th>Lớp</th>
+                      <th>Khoa</th>
+                      <th>Vai trò</th>
+                      <th>Ngày tham gia</th>
+                      <th>Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map(member => (
+                      <tr key={member.id}>
+                        <td>
+                          <input 
+                            type="checkbox"
+                            checked={selectedMembers.includes(member.id)}
+                            onChange={() => handleSelectMember(member.id)}
+                          />
+                        </td>
+                        <td>
+                          <div className="table-avatar">
                           {member.anh_dai_dien ? (
                             <img 
                               src={getAvatarUrl(member.anh_dai_dien)} 
@@ -327,9 +508,10 @@ const QuanLyThanhVien = () => {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       )}

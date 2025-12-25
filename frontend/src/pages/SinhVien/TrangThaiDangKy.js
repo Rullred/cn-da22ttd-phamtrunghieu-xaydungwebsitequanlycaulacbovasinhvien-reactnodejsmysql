@@ -154,7 +154,7 @@ const TrangThaiDangKy = () => {
           {filteredRegistrations.map(reg => {
             const statusInfo = getStatusInfo(reg.trang_thai_dang_ky);
             return (
-              <div key={reg.id} className={`registration-card ${statusInfo.class}`}>
+              <div key={reg.dang_ky_id || reg.hoat_dong_id} className={`registration-card ${statusInfo.class}`}>
                 <div className="card-header">
                   <div className="status-badge-large">
                     {statusInfo.icon}

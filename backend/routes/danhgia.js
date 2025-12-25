@@ -86,7 +86,7 @@ router.get('/', authenticateToken, async (req, res) => {
     res.json({
       ratings,
       statistics: {
-        average: total > 0 ? (sum / total).toFixed(1) : 0,
+        average: total > 0 ? sum / total : 0,
         total,
         distribution
       }
@@ -122,7 +122,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 
     res.json({
       total: stats[0].total,
-      average: parseFloat(stats[0].average || 0).toFixed(1),
+      average: parseFloat(stats[0].average || 0),
       distribution: {
         5: stats[0].five_star,
         4: stats[0].four_star,

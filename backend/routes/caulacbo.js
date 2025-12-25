@@ -122,9 +122,15 @@ router.get('/activities', async (req, res) => {
     }
 
     const [activities] = await db.query(
-      `SELECT * FROM hoat_dong 
-       WHERE cau_lac_bo_id = ? AND trang_thai != 'huy'
-       ORDER BY thoi_gian_bat_dau DESC`,
+      `SELECT 
+        hd.*,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'cho_duyet') as so_cho_duyet,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'dang_tham_gia') as so_dang_tham_gia,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai = 'hoan_thanh') as so_hoan_thanh,
+        (SELECT COUNT(*) FROM dang_ky_hoat_dong WHERE hoat_dong_id = hd.id AND trang_thai IN ('cho_duyet', 'dang_tham_gia', 'hoan_thanh', 'da_duyet')) as tong_so_dang_ky
+       FROM hoat_dong hd
+       WHERE hd.cau_lac_bo_id = ? AND hd.trang_thai != 'huy'
+       ORDER BY hd.thoi_gian_bat_dau DESC`,
       [clubs[0].id]
     );
 
@@ -233,6 +239,38 @@ router.post('/approve-registration/:id', async (req, res) => {
           type: 'duyet_hoat_dong',
           message: `Bạn đã được duyệt tham gia "${ten_hoat_dong}"`
         });
+      }
+
+      // ✅ THÊM SINH VIÊN VÀO PHÒNG CHAT KHI DUYỆT
+      try {
+        // Kiểm tra xem bảng phong_chat có tồn tại không
+        const [checkTable] = await db.query(
+          "SHOW TABLES LIKE 'phong_chat'"
+        );
+        
+        if (checkTable.length > 0) {
+          // Lấy phong_chat_id của hoạt động
+          const [roomInfo] = await db.query(
+            'SELECT id FROM phong_chat WHERE hoat_dong_id = ?',
+            [hoat_dong_id]
+          );
+          
+          if (roomInfo.length > 0) {
+            const phong_chat_id = roomInfo[0].id;
+            
+            // Thêm sinh viên vào phòng chat (INSERT IGNORE để tránh duplicate)
+            await db.query(
+              'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "sinh_vien")',
+              [phong_chat_id, nguoi_dung_id]
+            );
+            console.log(`✅ Đã thêm sinh viên ${nguoi_dung_id} vào phòng chat ${phong_chat_id}`);
+          } else {
+            console.log(`⚠️ Chưa có phòng chat cho hoạt động ${hoat_dong_id}`);
+          }
+        }
+      } catch (chatError) {
+        // Không throw error để không ảnh hưởng đến flow chính
+        console.log('⚠️ Lỗi khi thêm vào phòng chat:', chatError.message);
       }
     }
 
@@ -380,6 +418,175 @@ router.post('/confirm-completion/:id', async (req, res) => {
   }
 });
 
+// Phê duyệt hàng loạt (bulk approve registrations)
+router.post('/approve-registrations-bulk', async (req, res) => {
+  try {
+    const { registration_ids } = req.body;
+    
+    if (!registration_ids || registration_ids.length === 0) {
+      return res.status(400).json({ message: 'Không có đăng ký nào được chọn' });
+    }
+
+    console.log('Bulk approve:', registration_ids);
+
+    // Lấy thông tin tất cả đăng ký
+    const [registrations] = await db.query(
+      `SELECT dk.id, dk.hoat_dong_id, dk.sinh_vien_id, sv.nguoi_dung_id, sv.ho_ten, hd.ten_hoat_dong
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id IN (?)`,
+      [registration_ids]
+    );
+
+    // Cập nhật trạng thái hàng loạt
+    await db.query(
+      'UPDATE dang_ky_hoat_dong SET trang_thai = "dang_tham_gia", ngay_duyet_lan_1 = NOW() WHERE id IN (?)',
+      [registration_ids]
+    );
+
+    // Recalculate count cho từng hoạt động
+    const uniqueActivities = [...new Set(registrations.map(r => r.hoat_dong_id))];
+    for (const hoat_dong_id of uniqueActivities) {
+      await db.query(
+        `UPDATE hoat_dong 
+         SET so_luong_da_dang_ky = (
+           SELECT COUNT(*) FROM dang_ky_hoat_dong 
+           WHERE hoat_dong_id = ? 
+           AND trang_thai IN ('cho_duyet', 'dang_tham_gia', 'hoan_thanh', 'da_duyet')
+         ) 
+         WHERE id = ?`,
+        [hoat_dong_id, hoat_dong_id]
+      );
+    }
+
+    // Gửi thông báo và thêm vào phòng chat cho từng sinh viên
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+
+    for (const reg of registrations) {
+      const { nguoi_dung_id, ten_hoat_dong, hoat_dong_id } = reg;
+
+      // Gửi thông báo
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'duyet_hoat_dong', 'Đăng ký hoạt động được duyệt', ?)`,
+        [nguoi_dung_id, `Bạn đã được phê duyệt tham gia hoạt động "${ten_hoat_dong}"`]
+      );
+
+      // Real-time notification
+      const socketId = userSockets.get(nguoi_dung_id);
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'duyet_hoat_dong',
+          message: `Bạn đã được duyệt tham gia "${ten_hoat_dong}"`
+        });
+      }
+
+      // Thêm vào phòng chat
+      try {
+        const [checkTable] = await db.query("SHOW TABLES LIKE 'phong_chat'");
+        if (checkTable.length > 0) {
+          const [roomInfo] = await db.query(
+            'SELECT id FROM phong_chat WHERE hoat_dong_id = ?',
+            [hoat_dong_id]
+          );
+          if (roomInfo.length > 0) {
+            await db.query(
+              'INSERT IGNORE INTO thanh_vien_phong_chat (phong_chat_id, nguoi_dung_id, vai_tro) VALUES (?, ?, "sinh_vien")',
+              [roomInfo[0].id, nguoi_dung_id]
+            );
+          }
+        }
+      } catch (chatError) {
+        console.log('⚠️ Lỗi khi thêm vào phòng chat:', chatError.message);
+      }
+    }
+
+    res.json({ 
+      message: `Đã phê duyệt thành công ${registrations.length} đăng ký`,
+      count: registrations.length
+    });
+  } catch (error) {
+    console.error('Bulk approve error:', error);
+    res.status(500).json({ message: 'Lỗi phê duyệt hàng loạt', error: error.message });
+  }
+});
+
+// Xác nhận hoàn thành hàng loạt (bulk confirm completion)
+router.post('/confirm-completion-bulk', async (req, res) => {
+  try {
+    const { registration_ids } = req.body;
+    
+    if (!registration_ids || registration_ids.length === 0) {
+      return res.status(400).json({ message: 'Không có đăng ký nào được chọn' });
+    }
+
+    // Lấy thông tin tất cả đăng ký
+    const [registrations] = await db.query(
+      `SELECT dk.id, dk.sinh_vien_id, sv.id as sv_id, sv.nguoi_dung_id, sv.ho_ten,
+              hd.ten_hoat_dong, hd.diem_ren_luyen
+       FROM dang_ky_hoat_dong dk
+       JOIN sinh_vien sv ON dk.sinh_vien_id = sv.id
+       JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+       WHERE dk.id IN (?) AND dk.trang_thai = 'dang_tham_gia'`,
+      [registration_ids]
+    );
+
+    if (registrations.length === 0) {
+      return res.status(400).json({ message: 'Không có đăng ký hợp lệ nào (phải ở trạng thái đang tham gia)' });
+    }
+
+    // Cập nhật trạng thái hàng loạt
+    const validIds = registrations.map(r => r.id);
+    await db.query(
+      'UPDATE dang_ky_hoat_dong SET trang_thai = "hoan_thanh", ngay_duyet_lan_2 = NOW() WHERE id IN (?)',
+      [validIds]
+    );
+
+    // Cộng điểm và gửi thông báo cho từng sinh viên
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+
+    for (const reg of registrations) {
+      const { sv_id, nguoi_dung_id, ten_hoat_dong, diem_ren_luyen } = reg;
+      const diemCong = diem_ren_luyen || 0;
+
+      // Cộng điểm
+      if (diemCong > 0) {
+        await db.query(
+          'UPDATE sinh_vien SET tong_diem_ren_luyen = tong_diem_ren_luyen + ? WHERE id = ?',
+          [diemCong, sv_id]
+        );
+      }
+
+      // Gửi thông báo
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'duyet_hoat_dong', 'Hoàn thành hoạt động', ?)`,
+        [nguoi_dung_id, `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". +${diemCong} điểm rèn luyện!`]
+      );
+
+      // Real-time notification
+      const socketId = userSockets.get(nguoi_dung_id);
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'duyet_hoat_dong',
+          message: `Bạn đã hoàn thành hoạt động "${ten_hoat_dong}". +${diemCong} điểm!`
+        });
+      }
+    }
+
+    res.json({ 
+      message: `Đã xác nhận hoàn thành thành công ${registrations.length} sinh viên`,
+      count: registrations.length
+    });
+  } catch (error) {
+    console.error('Bulk confirm error:', error);
+    res.status(500).json({ message: 'Lỗi xác nhận hàng loạt', error: error.message });
+  }
+});
+
 // Xuất danh sách sinh viên đã hoàn thành hoạt động
 router.get('/completed-participants/:hoat_dong_id', async (req, res) => {
   try {
@@ -521,6 +728,65 @@ router.post('/reject-member/:id', async (req, res) => {
     res.json({ message: 'Từ chối thành viên' });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi từ chối', error: error.message });
+  }
+});
+
+// Phê duyệt hàng loạt thành viên CLB
+router.post('/approve-members-bulk', async (req, res) => {
+  try {
+    const { member_ids } = req.body;
+    
+    if (!member_ids || member_ids.length === 0) {
+      return res.status(400).json({ message: 'Không có thành viên nào được chọn' });
+    }
+
+    // Lấy thông tin tất cả thành viên
+    const [members] = await db.query(
+      `SELECT tv.id, sv.nguoi_dung_id, sv.ho_ten, clb.ten_clb
+       FROM thanh_vien_clb tv
+       JOIN sinh_vien sv ON tv.sinh_vien_id = sv.id
+       JOIN cau_lac_bo clb ON tv.cau_lac_bo_id = clb.id
+       WHERE tv.id IN (?)`,
+      [member_ids]
+    );
+
+    // Cập nhật trạng thái hàng loạt
+    await db.query(
+      'UPDATE thanh_vien_clb SET trang_thai = "da_duyet", ngay_duyet = NOW() WHERE id IN (?)',
+      [member_ids]
+    );
+
+    // Gửi thông báo cho từng thành viên
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+
+    for (const member of members) {
+      const { nguoi_dung_id, ten_clb } = member;
+
+      // Gửi thông báo
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'duyet_thanh_vien_clb', 'Được duyệt tham gia CLB', ?)`,
+        [nguoi_dung_id, `Chúc mừng! Bạn đã được duyệt tham gia ${ten_clb}`]
+      );
+
+      // Real-time notification
+      const socketId = userSockets.get(nguoi_dung_id);
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'duyet_thanh_vien_clb',
+          message: `Bạn đã được duyệt tham gia ${ten_clb}`
+        });
+      }
+    }
+
+    res.json({ 
+      message: `Đã phê duyệt thành công ${members.length} thành viên`,
+      count: members.length
+    });
+  } catch (error) {
+    console.error('Bulk approve members error:', error);
+    res.status(500).json({ message: 'Lỗi phê duyệt hàng loạt', error: error.message });
   }
 });
 

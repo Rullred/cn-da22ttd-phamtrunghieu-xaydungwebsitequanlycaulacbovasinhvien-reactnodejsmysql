@@ -18,13 +18,19 @@ const ChatList = () => {
 
   const syncAndFetchRooms = async () => {
     try {
-      // Đồng bộ phòng chat trước
-      await chatService.syncRooms();
+      // Thử đồng bộ phòng chat trước (có thể thất bại nếu bảng chưa tồn tại)
+      try {
+        await chatService.syncRooms();
+      } catch (syncError) {
+        console.log('Sync rooms skipped:', syncError.message);
+      }
       // Sau đó lấy danh sách
       const response = await chatService.getRooms();
       setRooms(response.data);
     } catch (error) {
       console.error('Fetch rooms error:', error);
+      // Nếu lỗi là do bảng chưa tồn tại, hiển thị danh sách rỗng
+      setRooms([]);
     } finally {
       setLoading(false);
     }

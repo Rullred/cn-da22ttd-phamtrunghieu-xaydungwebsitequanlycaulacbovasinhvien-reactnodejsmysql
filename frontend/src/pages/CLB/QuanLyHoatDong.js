@@ -192,9 +192,16 @@ const QuanLyHoatDong = () => {
                 <div className="info-row">
                   <FaUsers className="icon-users" />
                   <div>
-                    <div className="info-label">Số lượng tối đa</div>
-                    <div className="info-value">
-                      {activity.so_luong_da_dang_ky || 0} / {activity.so_luong_toi_da > 0 ? activity.so_luong_toi_da + ' người' : 'Không giới hạn'}
+                    <div className="info-label">Thống kê đăng ký</div>
+                    <div className="info-value" style={{fontSize: '13px'}}>
+                      <div style={{marginBottom: '4px'}}>
+                        <strong>Tổng:</strong> {activity.tong_so_dang_ky || 0} / {activity.so_luong_toi_da > 0 ? activity.so_luong_toi_da + ' người' : 'Không giới hạn'}
+                      </div>
+                      <div style={{display: 'flex', gap: '12px', fontSize: '12px', color: '#666'}}>
+                        <span>Chờ duyệt: {activity.so_cho_duyet || 0}</span>
+                        <span>Tham gia: {activity.so_dang_tham_gia || 0}</span>
+                        <span>Hoàn thành: {activity.so_hoan_thanh || 0}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

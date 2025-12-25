@@ -110,6 +110,65 @@ router.post('/reject-account/:id', async (req, res) => {
   }
 });
 
+// Phê duyệt hàng loạt tài khoản
+router.post('/approve-accounts-bulk', async (req, res) => {
+  try {
+    const { account_ids } = req.body;
+    
+    if (!account_ids || account_ids.length === 0) {
+      return res.status(400).json({ message: 'Không có tài khoản nào được chọn' });
+    }
+
+    // Lấy thông tin tất cả tài khoản
+    const [accounts] = await db.query(
+      `SELECT nd.id, nd.email, sv.ho_ten
+       FROM nguoi_dung nd
+       LEFT JOIN sinh_vien sv ON nd.id = sv.nguoi_dung_id
+       WHERE nd.id IN (?)`,
+      [account_ids]
+    );
+
+    // Cập nhật trạng thái hàng loạt
+    await db.query(
+      'UPDATE nguoi_dung SET trang_thai = "da_duyet" WHERE id IN (?)',
+      [account_ids]
+    );
+
+    // Gửi thông báo cho từng tài khoản
+    const io = req.app.get('io');
+    const userSockets = req.app.get('userSockets');
+
+    for (const account of accounts) {
+      const { id } = account;
+
+      // Tạo thông báo
+      await db.query(
+        `INSERT INTO thong_bao (nguoi_nhan_id, loai_thong_bao, tieu_de, noi_dung)
+         VALUES (?, 'tai_khoan_duyet', 'Tài khoản đã được phê duyệt', 
+                 'Chúc mừng! Tài khoản của bạn đã được Admin phê duyệt. Bạn có thể đăng nhập và sử dụng hệ thống.')`,
+        [id]
+      );
+
+      // Gửi thông báo real-time
+      const socketId = userSockets.get(id);
+      if (socketId) {
+        io.to(socketId).emit('notification', {
+          type: 'tai_khoan_duyet',
+          message: 'Tài khoản của bạn đã được phê duyệt'
+        });
+      }
+    }
+
+    res.json({ 
+      message: `Đã phê duyệt thành công ${accounts.length} tài khoản`,
+      count: accounts.length
+    });
+  } catch (error) {
+    console.error('Bulk approve accounts error:', error);
+    res.status(500).json({ message: 'Lỗi phê duyệt hàng loạt', error: error.message });
+  }
+});
+
 // Tạo câu lạc bộ mới
 router.post('/create-club', async (req, res) => {
   try {
@@ -264,20 +323,24 @@ router.get('/detailed-statistics', async (req, res) => {
     
     // Tổng hoạt động đã tổ chức (đã được duyệt) - filter theo period
     const [hoatDongDaToChuc] = await db.query(`
-      SELECT COUNT(*) as total FROM hoat_dong 
+      SELECT COUNT(DISTINCT id) as total FROM hoat_dong 
       WHERE trang_thai_duyet = 'da_duyet' ${dateFilterHoatDongSimple}
     `);
     
     // Tổng lượt tham gia (đăng ký hoàn thành) - filter theo period
+    // Chỉ đếm đăng ký có hoạt động còn tồn tại
     const [luotThamGia] = await db.query(`
-      SELECT COUNT(*) as total FROM dang_ky_hoat_dong 
-      WHERE trang_thai = 'hoan_thanh' ${dateFilterDangKySimple}
+      SELECT COUNT(*) as total FROM dang_ky_hoat_dong dk
+      INNER JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+      WHERE dk.trang_thai = 'hoan_thanh' ${dateFilterDangKySimple}
     `);
     
     // Tổng đăng ký (bao gồm cả đang tham gia) - filter theo period
+    // Chỉ đếm đăng ký có hoạt động còn tồn tại
     const [tongDangKy] = await db.query(`
-      SELECT COUNT(*) as total FROM dang_ky_hoat_dong 
-      WHERE trang_thai IN ('cho_duyet', 'dang_tham_gia', 'hoan_thanh') ${dateFilterDangKySimple}
+      SELECT COUNT(*) as total FROM dang_ky_hoat_dong dk
+      INNER JOIN hoat_dong hd ON dk.hoat_dong_id = hd.id
+      WHERE dk.trang_thai IN ('cho_duyet', 'dang_tham_gia', 'hoan_thanh') ${dateFilterDangKySimple}
     `);
     
     // Tỷ lệ hoàn thành
@@ -1027,6 +1090,48 @@ router.post('/confirm-completion-bulk', async (req, res) => {
     res.json({ message: `Đã xác nhận hoàn thành ${registration_ids.length} sinh viên` });
   } catch (error) {
     res.status(500).json({ message: 'Lỗi xác nhận hoàn thành', error: error.message });
+  }
+});
+
+// Xóa hoạt động Admin đã tạo
+router.delete('/activity/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Kiểm tra xem hoạt động có phải do Admin tạo không
+    const [activities] = await db.query(
+      'SELECT * FROM hoat_dong WHERE id = ? AND is_admin_activity = TRUE',
+      [id]
+    );
+    
+    if (activities.length === 0) {
+      return res.status(404).json({ message: 'Không tìm thấy hoạt động hoặc bạn không có quyền xóa' });
+    }
+    
+    const activity = activities[0];
+    
+    // Kiểm tra xem đã có sinh viên đăng ký và hoàn thành chưa
+    const [completedRegs] = await db.query(
+      'SELECT COUNT(*) as count FROM dang_ky_hoat_dong WHERE hoat_dong_id = ? AND trang_thai = "hoan_thanh"',
+      [id]
+    );
+    
+    if (completedRegs[0].count > 0) {
+      return res.status(400).json({ 
+        message: 'Không thể xóa hoạt động đã có sinh viên hoàn thành. Vui lòng liên hệ quản trị viên hệ thống.' 
+      });
+    }
+    
+    // Xóa các đăng ký liên quan trước (vì không có CASCADE DELETE)
+    await db.query('DELETE FROM dang_ky_hoat_dong WHERE hoat_dong_id = ?', [id]);
+    
+    // Xóa hoạt động
+    await db.query('DELETE FROM hoat_dong WHERE id = ?', [id]);
+    
+    res.json({ message: 'Đã xóa hoạt động thành công' });
+  } catch (error) {
+    console.error('Lỗi xóa hoạt động:', error);
+    res.status(500).json({ message: 'Lỗi xóa hoạt động', error: error.message });
   }
 });
 

@@ -11,7 +11,8 @@ import {
   FaUserCheck,
   FaFileExcel,
   FaSearch,
-  FaUniversity
+  FaUniversity,
+  FaTrash
 } from 'react-icons/fa';
 import './QuanLyHoatDong.css';
 
@@ -100,6 +101,28 @@ const QuanLyHoatDong = () => {
       fetchRegistrations(selectedActivity.id);
     } catch (error) {
       alert('Lỗi: ' + (error.response?.data?.message || 'Không thể xác nhận'));
+    }
+  };
+
+  const handleDeleteActivity = async (activity) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa hoạt động "${activity.ten_hoat_dong}"?\n\nLưu ý: Không thể xóa nếu đã có sinh viên hoàn thành.`)) {
+      return;
+    }
+    
+    try {
+      await adminService.deleteActivity(activity.id);
+      alert('Đã xóa hoạt động thành công!');
+      
+      // Nếu đang xem hoạt động này thì reset
+      if (selectedActivity?.id === activity.id) {
+        setSelectedActivity(null);
+        setRegistrations([]);
+      }
+      
+      // Refresh danh sách
+      fetchActivities();
+    } catch (error) {
+      alert('Lỗi xóa hoạt động: ' + (error.response?.data?.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -211,23 +234,39 @@ const QuanLyHoatDong = () => {
                 <div 
                   key={activity.id} 
                   className={`activity-item ${selectedActivity?.id === activity.id ? 'active' : ''}`}
-                  onClick={() => handleSelectActivity(activity)}
                 >
-                  <div className="activity-item-header">
-                    <h3>{activity.ten_hoat_dong}</h3>
-                    <span className={`status-dot ${activity.trang_thai}`}></span>
+                  <div 
+                    className="activity-item-content"
+                    onClick={() => handleSelectActivity(activity)}
+                  >
+                    <div className="activity-item-header">
+                      <h3>{activity.ten_hoat_dong}</h3>
+                      <span className={`status-dot ${activity.trang_thai}`}></span>
+                    </div>
+                    <div className="activity-item-info">
+                      <span><FaUniversity /> {activity.don_vi_phu_trach}</span>
+                      <span><FaCalendarAlt /> {formatDate(activity.thoi_gian_bat_dau)}</span>
+                    </div>
+                    <div className="activity-item-stats">
+                      <span className="stat-item">
+                        <FaUsers /> {activity.so_dang_ky || 0} đăng ký
+                      </span>
+                      <span className="stat-item success">
+                        <FaCheckCircle /> {activity.so_hoan_thanh || 0} hoàn thành
+                      </span>
+                    </div>
                   </div>
-                  <div className="activity-item-info">
-                    <span><FaUniversity /> {activity.don_vi_phu_trach}</span>
-                    <span><FaCalendarAlt /> {formatDate(activity.thoi_gian_bat_dau)}</span>
-                  </div>
-                  <div className="activity-item-stats">
-                    <span className="stat-item">
-                      <FaUsers /> {activity.so_dang_ky || 0} đăng ký
-                    </span>
-                    <span className="stat-item success">
-                      <FaCheckCircle /> {activity.so_hoan_thanh || 0} hoàn thành
-                    </span>
+                  <div className="activity-item-actions">
+                    <button 
+                      className="btn-delete-activity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteActivity(activity);
+                      }}
+                      title="Xóa hoạt động"
+                    >
+                      <FaTrash />
+                    </button>
                   </div>
                 </div>
               ))}

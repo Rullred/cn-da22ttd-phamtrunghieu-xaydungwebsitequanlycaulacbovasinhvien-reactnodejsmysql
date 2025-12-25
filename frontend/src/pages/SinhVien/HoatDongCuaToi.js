@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { sinhvienService } from '../../services/api';
 import Loading from '../../components/Loading';
-import { FaCalendarCheck, FaClock, FaTimesCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaCalendarCheck, FaClock, FaTimesCircle, FaCheckCircle, FaEye } from 'react-icons/fa';
 import './HoatDongCuaToi.css';
 
 const HoatDongCuaToi = () => {
+  const navigate = useNavigate();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +23,10 @@ const HoatDongCuaToi = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewDetail = (hoatDongId) => {
+    navigate(`/sinhvien/hoat-dong/${hoatDongId}`);
   };
 
   const handleCancel = async (id) => {
@@ -133,9 +139,15 @@ const HoatDongCuaToi = () => {
               </thead>
               <tbody>
                 {activities.map(activity => (
-                  <tr key={activity.id}>
+                  <tr key={activity.dang_ky_id || activity.hoat_dong_id}>
                     <td>
-                      <strong>{activity.ten_hoat_dong}</strong>
+                      <strong 
+                        className="activity-name-link"
+                        onClick={() => handleViewDetail(activity.hoat_dong_id)}
+                        style={{ cursor: 'pointer', color: '#5b6be8' }}
+                      >
+                        {activity.ten_hoat_dong}
+                      </strong>
                     </td>
                     <td>
                       <span className="clb-badge">{activity.ten_clb}</span>
@@ -167,14 +179,23 @@ const HoatDongCuaToi = () => {
                       })}
                     </td>
                     <td>
-                      {activity.trang_thai_dang_ky === 'cho_duyet' && (
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                         <button 
-                          onClick={() => handleCancel(activity.id)} 
-                          className="btn-cancel"
+                          onClick={() => handleViewDetail(activity.hoat_dong_id)} 
+                          className="btn-view"
+                          title="Xem chi tiết"
                         >
-                          Hủy
+                          <FaEye /> Xem
                         </button>
-                      )}
+                        {activity.trang_thai_dang_ky === 'cho_duyet' && (
+                          <button 
+                            onClick={() => handleCancel(activity.hoat_dong_id)} 
+                            className="btn-cancel"
+                          >
+                            Hủy
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -5,7 +5,7 @@ import socketService from '../../services/socket';
 import Loading from '../../components/Loading';
 import { 
   FaPaperPlane, FaImage, FaSmile, FaArrowLeft, FaUsers, 
-  FaCalendarAlt, FaMapMarkerAlt, FaTimes, FaTrash, FaUserMinus 
+  FaCalendarAlt, FaMapMarkerAlt, FaTimes, FaTrash, FaUserMinus, FaUser 
 } from 'react-icons/fa';
 import './ChatRoom.css';
 
@@ -296,11 +296,7 @@ const ChatRoom = () => {
             <div className={`message ${msg.nguoi_gui_id === userId ? 'own' : ''}`}>
               {msg.nguoi_gui_id !== userId && (
                 <div className="message-avatar">
-                  {msg.anh_dai_dien ? (
-                    <img src={msg.anh_dai_dien} alt="" />
-                  ) : (
-                    <span>{msg.ho_ten?.charAt(0) || 'U'}</span>
-                  )}
+                  <FaUser />
                 </div>
               )}
               <div className="message-content">
@@ -406,11 +402,7 @@ const ChatRoom = () => {
               {members.map(member => (
                 <div key={member.id} className="member-item">
                   <div className="member-avatar">
-                    {member.anh_dai_dien ? (
-                      <img src={member.anh_dai_dien} alt="" />
-                    ) : (
-                      <span>{member.ho_ten?.charAt(0) || 'U'}</span>
-                    )}
+                    <FaUser />
                   </div>
                   <div className="member-info">
                     <span className="member-name">{member.ho_ten}</span>

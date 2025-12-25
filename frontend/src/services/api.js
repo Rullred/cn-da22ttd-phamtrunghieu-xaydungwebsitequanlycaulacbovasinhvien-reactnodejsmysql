@@ -55,6 +55,7 @@ export const authService = {
 export const adminService = {
   getPendingAccounts: () => api.get('/admin/pending-accounts'),
   approveAccount: (id) => api.post(`/admin/approve-account/${id}`),
+  approveAccountsBulk: (ids) => api.post('/admin/approve-accounts-bulk', { account_ids: ids }),
   rejectAccount: (id, ly_do) => api.post(`/admin/reject-account/${id}`, { ly_do }),
   getPendingActivities: () => api.get('/admin/pending-activities'),
   approveActivity: (id) => api.post(`/admin/approve-activity/${id}`),
@@ -76,7 +77,8 @@ export const adminService = {
   getMyActivities: () => api.get('/admin/my-activities'),
   getActivityRegistrations: (id) => api.get(`/admin/activity-registrations/${id}`),
   confirmCompletion: (id) => api.post(`/admin/confirm-completion/${id}`),
-  confirmCompletionBulk: (ids) => api.post('/admin/confirm-completion-bulk', { registration_ids: ids })
+  confirmCompletionBulk: (ids) => api.post('/admin/confirm-completion-bulk', { registration_ids: ids }),
+  deleteActivity: (id) => api.delete(`/admin/activity/${id}`)
 };
 
 // Sinh viên services
@@ -98,18 +100,22 @@ export const clbService = {
   getActivities: () => api.get('/caulacbo/activities'),
   getActivityRegistrations: (id) => api.get(`/caulacbo/activity-registrations/${id}`),
   approveRegistration: (id) => api.post(`/caulacbo/approve-registration/${id}`),
+  approveRegistrationsBulk: (ids) => api.post('/caulacbo/approve-registrations-bulk', { registration_ids: ids }),
   rejectRegistration: (id, ly_do) => api.post(`/caulacbo/reject-registration/${id}`, { ly_do }),
   confirmCompletion: (id) => api.post(`/caulacbo/confirm-completion/${id}`),
+  confirmCompletionBulk: (ids) => api.post('/caulacbo/confirm-completion-bulk', { registration_ids: ids }),
   getCompletedParticipants: (hoat_dong_id) => api.get(`/caulacbo/completed-participants/${hoat_dong_id}`),
   getMemberRequests: () => api.get('/caulacbo/member-requests'),
   approveMember: (id) => api.post(`/caulacbo/approve-member/${id}`),
+  approveMembersBulk: (ids) => api.post('/caulacbo/approve-members-bulk', { member_ids: ids }),
   rejectMember: (id) => api.post(`/caulacbo/reject-member/${id}`),
   getMembers: () => api.get('/caulacbo/members'),
   removeMember: (id) => api.delete(`/caulacbo/remove-member/${id}`),
   updateActivity: (id, data) => api.put(`/caulacbo/activity/${id}`, data),
   deleteActivity: (id) => api.delete(`/caulacbo/activity/${id}`),
   getStatistics: () => api.get('/caulacbo/statistics'),
-  getTopStudents: () => api.get('/caulacbo/top-students')
+  getTopStudents: () => api.get('/caulacbo/top-students'),
+  sendEvidenceRequest: (hoat_dong_id) => api.post(`/danhsach/clb/gui-yeu-cau-tu-hoat-dong/${hoat_dong_id}`)
 };
 
 // Hoạt động services (public)

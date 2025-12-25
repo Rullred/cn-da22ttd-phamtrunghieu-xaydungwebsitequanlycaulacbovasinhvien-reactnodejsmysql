@@ -103,13 +103,25 @@ const DanhSachHoatDong = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeleteFile = async (id) => {
     if (!window.confirm('Bạn có chắc muốn xóa file này?')) return;
     try {
       await api.delete(`/danhsach/admin/file/${id}`);
+      alert('Xóa file thành công!');
       fetchData();
     } catch (error) {
-      alert('Lỗi xóa file');
+      alert('Lỗi xóa file: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleDeleteRequest = async (id) => {
+    if (!window.confirm('Bạn có chắc muốn xóa yêu cầu này? Thao tác này không thể hoàn tác.')) return;
+    try {
+      await api.delete(`/danhsach/admin/yeu-cau/${id}`);
+      alert('Xóa yêu cầu thành công!');
+      fetchData();
+    } catch (error) {
+      alert('Lỗi xóa yêu cầu: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -122,6 +134,68 @@ const DanhSachHoatDong = () => {
       yeu_cau_id: request.id
     });
     setShowUploadForm(true);
+  };
+
+  const handleDownloadExcel = async (request) => {
+    try {
+      if (!request.hoat_dong_id) {
+        // Cách cũ: có file Excel đính kèm
+        if (request.file_excel) {
+          window.open(`http://localhost:5000${request.file_excel}`, '_blank');
+        } else {
+          alert('Không có file Excel');
+        }
+        return;
+      }
+
+      // Cách mới: tải danh sách từ hoạt động
+      const response = await api.get(`/danhsach/admin/tai-danh-sach/${request.hoat_dong_id}`);
+      const participants = response.data;
+
+      if (!participants || participants.length === 0) {
+        alert('Không có sinh viên nào hoàn thành');
+        return;
+      }
+
+      // Tạo CSV content
+      const headers = ['STT', 'Họ tên', 'MSSV', 'Lớp', 'Khoa', 'Khóa', 'Tên hoạt động', 'Thời gian bắt đầu', 'Thời gian kết thúc', 'Địa điểm', 'Ngày đăng ký', 'Ngày duyệt lần 1', 'Ngày hoàn thành'];
+      const rows = participants.map((item, index) => [
+        index + 1,
+        item.ho_ten,
+        item.ma_sinh_vien,
+        item.lop || '',
+        item.khoa || '',
+        item.khoa_hoc ? `Khóa ${item.khoa_hoc}` : '',
+        item.ten_hoat_dong,
+        new Date(item.thoi_gian_bat_dau).toLocaleString('vi-VN'),
+        new Date(item.thoi_gian_ket_thuc).toLocaleString('vi-VN'),
+        item.dia_diem,
+        new Date(item.ngay_dang_ky).toLocaleString('vi-VN'),
+        new Date(item.ngay_duyet_lan_1).toLocaleString('vi-VN'),
+        new Date(item.ngay_duyet_lan_2).toLocaleString('vi-VN')
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Thêm BOM cho UTF-8
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Danh_sach_${request.ten_hoat_dong.replace(/\s+/g, '_')}_${Date.now()}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Lỗi tải danh sách:', error);
+      alert('Lỗi tải danh sách: ' + (error.response?.data?.message || error.message));
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -187,36 +261,54 @@ const DanhSachHoatDong = () => {
                   </div>
                   <div className="request-info">
                     <p><FaUniversity /> <strong>CLB:</strong> {req.ten_clb}</p>
-                    <p><FaCalendarAlt /> <strong>Ngày tổ chức:</strong> {new Date(req.ngay_to_chuc).toLocaleDateString('vi-VN')}</p>
+                    {req.ngay_to_chuc && (
+                      <p><FaCalendarAlt /> <strong>Ngày tổ chức:</strong> {new Date(req.ngay_to_chuc).toLocaleDateString('vi-VN')}</p>
+                    )}
+                    {req.so_luong_hoan_thanh > 0 && (
+                      <p><strong>Số sinh viên hoàn thành:</strong> {req.so_luong_hoan_thanh}</p>
+                    )}
                     {req.mo_ta && <p><strong>Mô tả:</strong> {req.mo_ta}</p>}
                     <p><FaClock /> <strong>Gửi lúc:</strong> {new Date(req.created_at).toLocaleString('vi-VN')}</p>
+                    {req.hoat_dong_id && (
+                      <p style={{ color: '#28a745', fontWeight: 'bold' }}>
+                        ✓ Yêu cầu từ hoạt động đã hoàn thành
+                      </p>
+                    )}
                   </div>
                   <div className="request-actions">
-                    {req.file_excel && (
-                      <a 
-                        href={`http://localhost:5000${req.file_excel}`} 
-                        download 
-                        className="btn btn-success btn-sm"
-                      >
-                        <FaFileExcel /> Tải Excel
-                      </a>
-                    )}
-                    {req.trang_thai === 'cho_xu_ly' && (
-                      <button 
-                        className="btn btn-info btn-sm"
-                        onClick={() => handleStatusChange(req.id, 'dang_xu_ly')}
-                      >
-                        Đang xử lý
-                      </button>
-                    )}
-                    {req.trang_thai !== 'hoan_thanh' && (
-                      <button 
-                        className="btn btn-primary btn-sm"
-                        onClick={() => openUploadFromRequest(req)}
-                      >
-                        <FaUpload /> Upload PDF
-                      </button>
-                    )}
+                    <div className="action-buttons-left">
+                      {(req.file_excel || req.hoat_dong_id) && (
+                        <button 
+                          className="btn btn-download"
+                          onClick={() => handleDownloadExcel(req)}
+                        >
+                          <FaDownload /> Tải danh sách
+                        </button>
+                      )}
+                      {req.trang_thai === 'cho_xu_ly' && (
+                        <button 
+                          className="btn btn-processing"
+                          onClick={() => handleStatusChange(req.id, 'dang_xu_ly')}
+                        >
+                          <FaSpinner /> Đang xử lý
+                        </button>
+                      )}
+                      {req.trang_thai !== 'hoan_thanh' && (
+                        <button 
+                          className="btn btn-upload"
+                          onClick={() => openUploadFromRequest(req)}
+                        >
+                          <FaUpload /> Upload PDF
+                        </button>
+                      )}
+                    </div>
+                    <button 
+                      className="btn btn-delete"
+                      onClick={() => handleDeleteRequest(req.id)}
+                      title="Xóa yêu cầu"
+                    >
+                      <FaTrash /> Xóa
+                    </button>
                   </div>
                 </div>
               ))}
@@ -267,10 +359,11 @@ const DanhSachHoatDong = () => {
                       <FaDownload /> Tải
                     </a>
                     <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(file.id)}
+                      className="btn btn-delete"
+                      onClick={() => handleDeleteFile(file.id)}
+                      title="Xóa file"
                     >
-                      <FaTrash />
+                      <FaTrash /> Xóa
                     </button>
                   </div>
                 </div>
