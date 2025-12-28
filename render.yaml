@@ -1,0 +1,52 @@
+services:
+  # Backend API Service
+  - type: web
+    name: ql-clb-backend
+    runtime: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: DB_HOST
+        fromDatabase:
+          name: ql-clb-mysql
+          property: host
+      - key: DB_USER
+        fromDatabase:
+          name: ql-clb-mysql
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ql-clb-mysql
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: ql-clb-mysql
+          property: database
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+
+  # Frontend Static Site
+  - type: web
+    name: ql-clb-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false
+
+# MySQL Database (Note: Render free tier only supports PostgreSQL)
+# You need to convert to PostgreSQL or use external MySQL service
+databases:
+  - name: ql-clb-mysql
+    databaseName: ql_clb_sv
+    user: qlclb_user
+    plan: free

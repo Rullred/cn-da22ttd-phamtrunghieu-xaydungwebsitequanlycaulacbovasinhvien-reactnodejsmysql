@@ -8,7 +8,6 @@ USE ql_clb_sv;
 CREATE TABLE nguoi_dung (
   id INT PRIMARY KEY AUTO_INCREMENT,
   email VARCHAR(255) UNIQUE NOT NULL,
-  google_id VARCHAR(255) UNIQUE,
   mat_khau VARCHAR(255), -- Dùng cho tài khoản Admin và Chủ nhiệm được tạo thủ công
   loai_nguoi_dung ENUM('admin', 'sinh_vien', 'chu_nhiem') NOT NULL,
   trang_thai ENUM('chua_hoan_thanh', 'cho_duyet', 'da_duyet', 'tu_choi') DEFAULT 'chua_hoan_thanh',
